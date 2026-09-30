@@ -2,8 +2,6 @@
 
 A governance standard and deployable reference lab for platform engineers and application teams adopting Microsoft Foundry. The goal is to centralize access to approved models while giving teams project-scoped access to their agents and data dependencies.
 
-The lab connects Foundry agents to a central model through a private Azure API Management (APIM) gateway. Separate Foundry resources host the models and use-case projects; managed identities authorize each request hop.
-
 ## Repository Contents
 
 | Document | Contents |
@@ -12,17 +10,13 @@ The lab connects Foundry agents to a central model through a private Azure API M
 | [Components And Architecture](docs/Components.md) | Resource responsibilities, request flows and authorization boundaries. |
 | [Lab Lifecycle](docs/Lifecycle.md) | Prerequisites, staged deployment, repeat testing and guarded teardown. |
 | [Tests And Results](docs/Tests.md) | Q01-Q11 assertions, reference results and validation limits. |
-| [Diagrams](diagrams/README.md) | Architecture and concept diagrams in PNG, SVG and editable Excalidraw formats. |
+| [Diagram Files](diagrams/README.md) | PNG, SVG and editable Excalidraw downloads for the figures embedded in the documents. |
 
 Implementation: `infra/` contains Bicep templates and the gateway policy; `scripts/` contains operational commands; `tests/` contains offline safety and structural checks.
 
-The eleven assertions passed in the reference lab. Its gateway uses an illustrative identity allowlist; the standard specifies Entra app roles for production. Each new environment needs its own acceptance run, and production qualification extends beyond these tests.
-
 ## Run The Lab
 
-Use PowerShell 7 on Windows with Azure CLI, Bicep and OpenSSH. Follow the [lifecycle procedure](docs/Lifecycle.md#preparation) to prepare an authenticated Azure context and confirm the target, permissions, capacity and deployment approval.
-
-Keep credentials, run state and generated evidence outside the repository. Create each environment with a fresh lab identifier. Provisioning and live tests incur Azure charges; resources remain deployed until separately approved teardown.
+Start with [preparation and prerequisites](docs/Lifecycle.md#preparation). For an existing environment, use [repeat tests](docs/Lifecycle.md#repeat-quick-tests) or the separately approved [teardown procedure](docs/Lifecycle.md#teardown).
 
 ## GitHub Copilot
 

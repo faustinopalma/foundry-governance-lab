@@ -1,13 +1,14 @@
 # Microsoft Foundry: Governance Standard
 
-## 1. Principles
+This organizational standard applies to Foundry Agent Service, including prompt and hosted agents. Requirements expressed as "must" are acceptance conditions for adopting it. The [reference implementation](Components.md) documents the lab's concrete configuration.
 
-- **Central model management.** The platform team approves models, manages their deployments and capacity, and controls access through a shared AI gateway.
-- **Application-team autonomy.** Teams build and operate agents within assigned projects. This does not require administration of the central models or shared infrastructure.
-- **Explicit separation.** Projects, identities, data permissions and network boundaries serve different purposes. Sharing one does not justify sharing the others.
-- **Service ownership.** Each use case has an owner accountable for application quality, authorized data use, consumption and operational readiness, including when Foundry manages the runtime.
+## 1. Ownership
 
-This standard applies to the current Foundry Agent Service, including prompt agents and hosted agents. It defines an organizational architecture, not a product requirement or a deployment procedure. Requirements expressed as "must" are acceptance conditions for adopting this standard.
+| Owner | Accountability |
+| --- | --- |
+| Platform team | Model approval, versions and retirements; deployments and capacity; gateway policy and shared connectivity. |
+| Application owner and team | Agent development within assigned projects; application quality, user authorization, permitted data use, consumption and operational readiness, including managed runtimes. |
+| Data owners | Approval of source access and permitted tool actions. |
 
 ## 2. Architecture And Boundaries
 
@@ -15,15 +16,15 @@ This standard applies to the current Foundry Agent Service, including prompt age
 
 | Component | Responsibility and boundary |
 | --- | --- |
-| Central model resources | Host approved model deployments, without application-agent projects. The platform team controls model versions, deployment types, access and capacity. |
-| AI gateway | Authenticate and authorize callers, restrict model routes, enforce usage policies and attribute consumption. Azure API Management is one implementation. The gateway does not host agents or models. |
+| Central model resources | Host approved model deployments, without application-agent projects. |
+| AI gateway | Entry point for model inference. Azure API Management (APIM) is one implementation; it does not host agents or models. |
 | Use-case Foundry resource | Contain projects for a use case or an approved group of compatible use cases. It hosts no local model deployments under this standard. |
 | Foundry project | Organize agents, connections and project-level access for one application environment. It is not an independent network perimeter. |
 | Data and runtime dependencies | Supply storage, retrieval, tools, container images and telemetry. Each has its own access controls, network configuration and lifecycle. |
 
 Central management does not require one physical model resource for the entire organization. Start with a shared resource where requirements permit; separate resources when residency, capacity or availability requirements demand it. The same central approval and gateway controls apply to all of them.
 
-Applications invoke the agent endpoint for their use case. The agent reaches approved models through the gateway, which authenticates to the model backend with its own authorized identity. Direct model consumption, where required by an application, must also use an explicitly authorized gateway route.
+Applications invoke the agent endpoint for their use case. Direct model consumption, where required, must use an explicitly authorized gateway route.
 
 ![Figure 1. Application teams access centrally governed models through the AI gateway. Project identities and data permissions remain specific to the authorized use case and environment.](../diagrams/04-governance.png)
 
@@ -43,13 +44,12 @@ For each approved model route, maintain the deployment and model version, suppor
 
 A connection makes a remote model discoverable to an agent; it neither copies the deployment nor grants access to it. Connected-model support varies by tool and protocol. Verify the required combination before selecting the architecture, rather than assuming every native Foundry feature works through any gateway.
 
-Expose approved routes only. Application teams must not receive direct central-model inference permissions or credentials. Restrict network paths and access administration so that changing a client endpoint cannot bypass the gateway. Developers must not be able to deploy local replacement models as an alternative route around these controls.
+Expose approved routes only. Application teams must not receive direct central-model inference permissions or credentials. Restrict network paths and access administration so that changing a client endpoint or deploying a replacement model cannot bypass the gateway.
 
 ### 3.2 Gateway Policy
 
-- Validate token issuer, tenant and audience, then authorize the caller for the requested model and environment. Successful authentication alone is insufficient.
 - Fix the permitted backend, deployment and operations. Do not accept arbitrary destinations or credentials supplied by callers.
-- Authenticate separately to the backend using a managed identity where supported. Keep backend keys out of application code; any necessary secret must have an owner, protected storage and rotation.
+- Authenticate separately to the backend using a managed identity where supported: this is a workload's Microsoft Entra identity with Azure-managed credentials. Keep backend keys out of application code; any necessary secret must have an owner, protected storage and rotation.
 - Set request-size and generation limits appropriate to the service. Define rate and token limits per use case, with shared-capacity protection where needed. Restrict who can edit policies because policies can act through the gateway identity.
 - Measure usage, failures and latency with a stable use-case identifier derived from authenticated context. Do not trust an arbitrary client header for authorization or billing attribution.
 
@@ -57,19 +57,17 @@ A rate limit, a token quota and a monetary budget are different controls. Valida
 
 ### 3.3 Production App-Role Authorization
 
-Production deployments under this standard must authorize application callers through Microsoft Entra app roles, rather than a list of caller object IDs embedded in the gateway policy. Register the gateway API in Entra and expose application permissions such as `Inference.Invoke`. Assign the required app roles to the managed identities or other service principals that actually call the gateway. Define separate permissions where model routes or environments require different access.
+Production deployments must authorize application callers through Microsoft Entra app roles. Register the gateway API and expose application permissions such as `Inference.Invoke`, with `Application` as an allowed member type. Assign these roles directly to the calling managed identities' service principals or other application service principals. Define separate permissions where model routes or environments require different access. Manage assignments in Entra so that changing a caller does not require editing the gateway policy.
 
-These are service-to-service application permissions, not roles that require a human sign-in. Define the app role with `Application` as an allowed member type and assign it directly to the calling managed identity's service principal. The agent runtime obtains an app-only token; no signed-in user or delegated user token is required. Azure manages the managed identity's credentials. The API registration represents the protected gateway and does not replace the caller's managed identity.
+Callers and Foundry connections request an app-only access token for the registered gateway API's audience. This service-to-service flow requires no human sign-in or delegated user token. The registration represents the protected API; the caller retains its own identity. APIM validates the token's signature, issuer, tenant, lifetime and audience, then requires the appropriate value in the signed `roles` claim for the operation. A missing or insufficient role must deny access. A Cognitive Services token does not establish these custom application permissions.
 
-Callers request an access token for the registered gateway API. APIM validates its signature, issuer, tenant, lifetime and audience, then requires the appropriate value in the signed `roles` claim for the requested operation. A missing or insufficient role must deny access. Role assignments are managed in Entra; changing an authorized caller does not require editing the policy's list of identities. The Foundry connection must request the gateway API's token audience; a token intended for Cognitive Services does not establish these custom application permissions.
-
-App roles are not Azure RBAC roles. APIM still uses its own managed identity, a separate Cognitive Services token and the required backend data-plane role to invoke the central model. Before production acceptance, verify a permitted end-to-end request and denials for missing or incorrect app roles and wrong audiences. Validate this pattern on the selected connection and runtime; an identity-allowlist demonstration does not establish app-role enforcement.
+App roles control access to the gateway API; Azure RBAC controls permissions on the model service. APIM obtains a separate Cognitive Services token using its own managed identity and [backend data-plane role](#41-people-and-deployment-automation). Validate the selected connection and runtime against this token contract before adoption; the production checks are specified in [operational acceptance](#7-operational-acceptance).
 
 ## 4. Identities And Permissions
 
 ### 4.1 People And Deployment Automation
 
-Authenticate people and applications through Microsoft Entra ID; prefer managed identities for workloads. Assign human access through security groups by responsibility and environment, with time-limited privileged access where available. Separate infrastructure provisioning and role assignment from everyday development; prefer federated pipeline credentials to long-lived deployment secrets.
+Authenticate people and applications through Microsoft Entra ID. Assign human access through security groups by responsibility and environment, with time-limited privileged access where available. Separate infrastructure provisioning and role assignment from everyday development; prefer federated pipeline credentials to long-lived deployment secrets.
 
 | Responsibility | Baseline role and scope |
 | --- | --- |
@@ -86,11 +84,13 @@ Foundry Agent Consumer covers agent endpoint interaction, not every resource cal
 
 ### 4.2 Runtime Identity
 
+Prefer managed identities for workloads. System-assigned identities share their resource's lifecycle; user-assigned identities are standalone Azure resources.
+
 Distinguish the application caller, project managed identity, hosted-agent identity and gateway identity. For each connection, establish which identity actually obtains the token and assign permissions to that identity on the destination. Creating a connection or attaching an identity does not authorize it.
 
 ![Figure 2. Agent invocation, gateway access, model inference and data access require separate authorization.](../diagrams/05-identity-boundaries.png "inline")
 
-The project identity supports platform operations and configured connections. A hosted agent has a separate Entra identity for runtime access. Grant data and tool permissions by required operation and environment, not by copying all permissions from the project to the agent. A shared identity shares its effective authorization across the workloads that can use it.
+The project identity supports platform operations and configured connections. A hosted agent has a separate Entra identity for runtime access. Grant data and tool permissions by required operation and environment, not by copying all permissions from the project to the agent.
 
 An app role assigned to a shared project identity does not distinguish individual agents using that identity. Per-agent gateway authorization requires distinct caller identities and a connection and runtime that support obtaining tokens as those identities.
 
@@ -110,7 +110,7 @@ Allow runtime egress only to approved models, tools and dependencies through sup
 
 ### 5.2 Data And Tool Authorization
 
-Data owners approve sources, retrieval scope, permitted actions and retention. Apply permissions at the smallest supported data scope. Retrieval must enforce the requesting user's or application's authorization before returning content; prompt instructions and a shared search index are not access controls.
+Record approved sources, retrieval scope, permitted actions and retention. Apply permissions at the smallest supported data scope. Retrieval must enforce the requesting user's or application's authorization before returning content; prompt instructions and a shared search index are not access controls.
 
 Treat model output and retrieved instructions as untrusted input to tools. Validate tool arguments, constrain destinations and operations, and require approval for consequential actions where the service risk warrants it. Content-safety filters and prompt-injection defenses complement these controls; neither replaces authorization.
 
@@ -134,18 +134,18 @@ Model, prompt, tool and dependency changes can alter behavior independently. Run
 
 ## 7. Operational Acceptance
 
-The platform team owns shared models, gateway policy, shared connectivity and capacity. The application owner owns agent behavior, user authorization, data use and service outcomes. Data owners authorize source access and tool actions. Operational ownership includes alert response, incident escalation and removal of obsolete access.
+Assign alert response, incident escalation and removal of obsolete access to the operational owners.
 
 Before production use, retain evidence that:
 
 - The named owner, environment placement, data classification, model route and approved identities match the deployed configuration, including inherited permissions.
-- An authorized end-to-end request succeeds through the intended route. Anonymous, wrong-audience, unauthorized-model and direct-backend requests are rejected as designed.
+- Authorized direct-gateway and agent requests succeed through the intended routes. Anonymous, wrong-audience, missing or incorrect app-role, unauthorized-model and direct-backend requests are rejected as designed.
 - A representative identity can access its own project and data but cannot access another use case or environment. Each denial has a successful permitted control; a network failure is not proof of an authorization boundary.
 - Private DNS, runtime egress, image pulls and required tool paths work from their real sources. Network-denial claims are tested from those sources, not only from an administrator's workstation.
 - Usage controls and alerts have been exercised. Operators can correlate failures without unnecessary payload exposure, and the service has defined capacity and availability objectives.
 - The deployed version is recorded; rollback, recovery, credential revocation and data-retention procedures have been tested to the extent required by the service risk.
 
-Test results establish the specific controls exercised, not universal isolation or production certification. Recheck affected controls after changes to identities, network rules, connections, models or gateway policy. Exceptions require an owner, rationale, compensating controls and review or expiry condition; they must not remain undocumented implementation choices.
+Recheck affected controls after changes to identities, network rules, connections, models or gateway policy. Exceptions require an owner, rationale, compensating controls and review or expiry condition; they must not remain undocumented implementation choices.
 
 ## References
 
