@@ -1,0 +1,10 @@
+# Foundry Governance Lab
+
+This folder is a standalone customer package. For architecture questions, lab creation, deployment status, test execution or explicitly requested teardown, load [the Foundry governance lab skill](skills/foundry-governance-lab/SKILL.md). Resolve all commands from this package root, not from a parent repository. Use only the scripts and documentation shipped here; no private author workspace or personal skill installation is required.
+
+- Questions and planning are read-only. Do not deploy or run live tests unless requested. Obtain explicit approval for the Azure target, scope and costs before provisioning.
+- Never stop, deallocate, delete or tear down a lab as a side effect of creation or tests. Destructive operations require a separate explicit request and the packaged approval checks.
+- Keep credentials, CLI configuration, private run state and generated evidence outside this folder. Never request secrets in chat or print tokens. Authentication is completed by the operator through the normal Azure sign-in flow.
+- Follow the staged procedure in [docs/Lifecycle.md](../docs/Lifecycle.md). Do not bypass ownership checks, approvals or failed assertions, weaken policies, invent replacement deployment commands, or edit source during an active run.
+- The lab's caller allowlist is illustrative. Production app-role authorization is described in [docs/Governance.md](../docs/Governance.md), not implemented or validated by the lab. Report only controls actually exercised.
+- Write project documentation in English. Reply in the user's language. Use PowerShell 7 on Windows for these scripts; time terminal commands and report elapsed time. Preserve existing source and user edits.

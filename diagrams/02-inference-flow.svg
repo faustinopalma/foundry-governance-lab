@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1240" viewBox="0 0 1520 1240" role="img" aria-labelledby="title description">
+<title id="title">02 / Request and identity flow</title><desc id="description">Direct gateway inference and agent inference use separate caller identities. Both use the same central model.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs>
+<marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#0078D4"/></marker>
+<marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#107C10"/></marker>
+<marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#D13438"/></marker>
+<marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#647078"/></marker>
+</defs>
+<rect x="50" y="350" width="300" height="105" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="200" y="397">Private runner</tspan><tspan x="200" y="424.5">client or dev-a identity</tspan></text>
+<polyline points="200,470 200,1040" fill="none" stroke="#647078" stroke-width="2" stroke-dasharray="8 6" />
+<rect x="440" y="350" width="300" height="105" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="590" y="397">A-dev agent</tspan><tspan x="590" y="424.5">Project managed identity</tspan></text>
+<polyline points="590,470 590,1040" fill="none" stroke="#647078" stroke-width="2" stroke-dasharray="8 6" />
+<rect x="835" y="350" width="250" height="105" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="960" y="397">APIM gateway</tspan><tspan x="960" y="424.5">Gateway identity</tspan></text>
+<polyline points="960,470 960,1040" fill="none" stroke="#647078" stroke-width="2" stroke-dasharray="8 6" />
+<rect x="1190" y="350" width="290" height="105" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="1335" y="397">Central model</tspan><tspan x="1335" y="424.5">lab-chat</tspan></text>
+<polyline points="1335,470 1335,1040" fill="none" stroke="#647078" stroke-width="2" stroke-dasharray="8 6" />
+<polyline points="200,525 950,525" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="235" y="486">Q02: approved client /</tspan><tspan x="235" y="513.5">cognitive-services token</tspan></text>
+<polyline points="970,575 1325,575" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="985" y="557">APIM managed identity</tspan></text>
+<polyline points="1335,620 970,620" fill="none" stroke="#107C10" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow-green)"/>
+<polyline points="960,660 210,660" fill="none" stroke="#107C10" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="235" y="643">HTTP 200 / OK</tspan></text>
+<polyline points="200,735 580,735" fill="none" stroke="#0078D4" stroke-width="2"  marker-end="url(#arrow-blue)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="225" y="713">Q09: verify agent version 1</tspan></text>
+<polyline points="200,810 580,810" fill="none" stroke="#0078D4" stroke-width="2"  marker-end="url(#arrow-blue)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="225" y="787">Q10: Responses / version 1</tspan></text>
+<polyline points="590,870 950,870" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="608" y="839">Project identity</tspan><tspan x="608" y="864">via governed-models</tspan></text>
+<polyline points="970,920 1325,920" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="985" y="897">APIM managed identity</tspan></text>
+<polyline points="1335,960 970,960" fill="none" stroke="#107C10" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow-green)"/>
+<polyline points="960,995 600,995" fill="none" stroke="#107C10" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow-green)"/>
+<polyline points="590,1030 210,1030" fill="none" stroke="#107C10" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="235" y="1063">Completed agent response</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="40" y="1109">Foundry API audience: https://ai.azure.com     |     Gateway audience: https://cognitiveservices.azure.com</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="start"><tspan x="40" y="1155">APIM validates the caller token, then authenticates to the model using its own identity. No backend key is shared.</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="40" y="1200">Arrows describe configured routing; Q09-Q10 prove agent version and response, not independent telemetry attribution.</tspan></text>
+<rect x="40" y="150" width="1440" height="185" fill="none" stroke="#0078D4" stroke-width="2" stroke-dasharray="8 6"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="start"><tspan x="64" y="192">Private test execution without a VPN</tspan></text>
+<rect x="65" y="207" width="310" height="80" fill="#F3F5F6" stroke="#647078" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle"><tspan x="220" y="242">Operator computer</tspan><tspan x="220" y="267">Azure management access</tspan></text>
+<rect x="460" y="207" width="440" height="80" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle"><tspan x="680" y="242">Azure VM Run Command</tspan><tspan x="680" y="267">Management plane / RBAC authorization</tspan></text>
+<rect x="985" y="207" width="470" height="80" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle"><tspan x="1220" y="242">VM Agent / private runner</tspan><tspan x="1220" y="267">Starts Q01-Q10 inside the VNet</tspan></text>
+<polyline points="385,247 450,247" fill="none" stroke="#0078D4" stroke-width="2"  marker-end="url(#arrow-blue)"/>
+<polyline points="910,247 975,247" fill="none" stroke="#0078D4" stroke-width="2"  marker-end="url(#arrow-blue)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="321">No VPN, public VM IP or inbound SSH. Requires a healthy VM Agent and outbound connectivity to Azure.</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="36" text-anchor="start"><tspan x="40" y="66">02 / Request and identity flow</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="40" y="110">Direct gateway inference and agent inference use separate caller identities. Both use the same central model.</tspan></text>
+</svg>

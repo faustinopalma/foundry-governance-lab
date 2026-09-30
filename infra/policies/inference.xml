@@ -1,0 +1,40 @@
+<policies>
+  <inbound>
+    <base />
+    <validate-azure-ad-token tenant-id="__TENANT__" header-name="Authorization" failed-validation-httpcode="401" output-token-variable-name="caller">
+      <audiences><audience>https://cognitiveservices.azure.com</audience></audiences>
+    </validate-azure-ad-token>
+    <choose>
+      <when condition='@{ var token = (Jwt)context.Variables["caller"]; if (!token.Claims.ContainsKey("oid")) { return true; } return !"__CALLERS__".Split(&apos;,&apos;).Contains(token.Claims["oid"][0]); }'>
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+          <set-body>{"code":"CallerNotAllowed"}</set-body>
+        </return-response>
+      </when>
+    </choose>
+    <rate-limit-by-key calls="20" renewal-period="60" counter-key="fgl-inference" />
+    <quota-by-key calls="200" renewal-period="86400" counter-key="fgl-inference" />
+    <validate-content unspecified-content-type-action="prevent" max-size="16384" size-exceeded-action="prevent">
+      <content type="application/json" validate-as="json" schema-id="lab-chat-body" action="prevent" />
+    </validate-content>
+    <set-body>@{
+      var body = context.Request.Body.As&lt;JObject&gt;(preserveContent: true);
+      body["max_tokens"] = 256;
+      body["n"] = 1;
+      if (body["stream"] == null) { body["stream"] = false; }
+      if (body["stream"].Value&lt;bool&gt;() == false) { body.Remove("stream_options"); }
+      body.Remove("max_completion_tokens");
+      body.Remove("model");
+      return body.ToString();
+    }</set-body>
+    <set-header name="api-key" exists-action="delete" />
+    <set-backend-service base-url="https://__MODEL_ACCOUNT__.openai.azure.com" />
+    <rewrite-uri template="/openai/deployments/lab-chat/chat/completions" copy-unmatched-params="false" />
+    <set-query-parameter name="api-version" exists-action="override"><value>2024-10-21</value></set-query-parameter>
+    <authentication-managed-identity resource="https://cognitiveservices.azure.com" ignore-error="false" />
+  </inbound>
+  <backend><base /></backend>
+  <outbound><base /></outbound>
+  <on-error><base /></on-error>
+</policies>

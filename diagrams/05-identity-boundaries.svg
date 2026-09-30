@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="710" viewBox="0 0 1520 710" role="img" aria-labelledby="title description">
+<title id="title">One request, separate permissions</title><desc id="description">Each destination authorizes the identity presented on that hop.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs>
+<marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#0078D4"/></marker>
+<marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#107C10"/></marker>
+<marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#D13438"/></marker>
+<marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#647078"/></marker>
+</defs>
+<rect x="40" y="160" width="300" height="155" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="middle"><tspan x="190" y="230">Application</tspan><tspan x="190" y="267.5">Caller identity</tspan></text>
+<rect x="420" y="160" width="300" height="155" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="middle"><tspan x="570" y="211.25">Agent runtime</tspan><tspan x="570" y="248.75">Project or agent</tspan><tspan x="570" y="286.25">identity</tspan></text>
+<rect x="800" y="160" width="300" height="155" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="middle"><tspan x="950" y="230">AI gateway</tspan><tspan x="950" y="267.5">Gateway identity</tspan></text>
+<rect x="1180" y="160" width="300" height="155" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="middle"><tspan x="1330" y="230">Approved model</tspan><tspan x="1330" y="267.5">Backend service</tspan></text>
+<polyline points="350,235 410,235" fill="none" stroke="#0078D4" stroke-width="2"  marker-end="url(#arrow-blue)"/>
+<polyline points="730,235 790,235" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<polyline points="1110,235 1170,235" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="29" text-anchor="middle"><tspan x="570" y="369">Agent invocation</tspan><tspan x="570" y="405.25">permission</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="29" text-anchor="middle"><tspan x="950" y="369">Caller + model route</tspan><tspan x="950" y="405.25">authorization</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="29" text-anchor="middle"><tspan x="1330" y="369">Backend inference</tspan><tspan x="1330" y="405.25">permission</tspan></text>
+<polyline points="570,420 570,470" fill="none" stroke="#0078D4" stroke-width="2"  marker-end="url(#arrow-blue)"/>
+<rect x="370" y="480" width="400" height="105" fill="#F3F5F6" stroke="#647078" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="middle"><tspan x="570" y="525">Data and tools</tspan><tspan x="570" y="562.5">Scoped data permissions</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="start"><tspan x="820" y="505">Grant data access to the actual runtime identity,</tspan><tspan x="820" y="542.5">not automatically to the caller or gateway.</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="30" text-anchor="start"><tspan x="40" y="665">A connection defines a route. It does not grant access to the destination.</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="36" text-anchor="start"><tspan x="40" y="66">One request, separate permissions</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="40" y="110">Each destination authorizes the identity presented on that hop.</tspan></text>
+</svg>

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1040" viewBox="0 0 1520 1040" role="img" aria-labelledby="title description">
+<title id="title">03 / Reachability, identity and permissions</title><desc id="description">Every assertion shown matched its expected result in the reference lab. Expected denials are passing security tests.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs>
+<marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#0078D4"/></marker>
+<marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#107C10"/></marker>
+<marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#D13438"/></marker>
+<marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="#647078"/></marker>
+</defs>
+<rect x="40" y="160" width="1440" height="135" fill="none" stroke="#0078D4" stroke-width="2" stroke-dasharray="8 6"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="start"><tspan x="64" y="202">1. Private reachability</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="65" y="235">Q01: gateway and case-A names resolve to private addresses from the runner. Reachability alone does not grant API access.</tspan></text>
+<rect x="40" y="335" width="855" height="470" fill="none" stroke="#107C10" stroke-width="2" stroke-dasharray="8 6"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="start"><tspan x="64" y="377">2. Gateway authentication and authorization</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="65" y="414">Request</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="610" y="414">Expected / observed</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="468">Q03 / No bearer token</tspan></text>
+<rect x="610" y="437" width="255" height="52" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="middle"><tspan x="737.5" y="470.875">401 / PASS</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="533">Q05 / dev-a, wrong token audience</tspan></text>
+<rect x="610" y="502" width="255" height="52" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="middle"><tspan x="737.5" y="535.875">401 / PASS</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="598">Q04 / dev-a, valid audience, not allowlisted</tspan></text>
+<rect x="610" y="567" width="255" height="52" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="middle"><tspan x="737.5" y="600.875">403 / PASS</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="663">Q06 / Approved client, unconfigured route</tspan></text>
+<rect x="610" y="632" width="255" height="52" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="middle"><tspan x="737.5" y="665.875">404 / PASS</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="728">Q02 / Approved client, valid request</tspan></text>
+<rect x="610" y="697" width="255" height="52" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="21" text-anchor="middle"><tspan x="737.5" y="730.875">200 + OK / PASS</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="65" y="790">Q04 also requires the exact CallerNotAllowed error code.</tspan></text>
+<rect x="925" y="335" width="555" height="470" fill="none" stroke="#0078D4" stroke-width="2" stroke-dasharray="8 6"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="start"><tspan x="949" y="377">3. Project and data authorization</tspan></text>
+<rect x="950" y="441" width="140" height="70" fill="#EAF4FD" stroke="#0078D4" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="1020" y="484.25">dev-a</tspan></text>
+<rect x="1250" y="416" width="200" height="85" fill="#EAF5E8" stroke="#107C10" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="1350" y="453">A-dev</tspan><tspan x="1350" y="480.5">Agent list</tspan></text>
+<rect x="1250" y="566" width="200" height="85" fill="#FDEEEF" stroke="#D13438" stroke-width="2" />
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle"><tspan x="1350" y="603">A-test</tspan><tspan x="1350" y="630.5">Agent list</tspan></text>
+<polyline points="1100,458 1240,458" fill="none" stroke="#107C10" stroke-width="2"  marker-end="url(#arrow-green)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle"><tspan x="1170" y="433">Q07 / 200</tspan></text>
+<polyline points="1020,521 1020,610 1240,610" fill="none" stroke="#D13438" stroke-width="2"  marker-end="url(#arrow-red)"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle"><tspan x="1137.5" y="585">Q08 / 403</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="950" y="714">Q11: A-test runtime deployment matches the three</tspan><tspan x="950" y="741.5">intended scoped data grants.</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="start"><tspan x="950" y="783">Role configuration, not a data-plane test.</tspan></text>
+<rect x="40" y="855" width="1440" height="150" fill="none" stroke="#647078" stroke-width="2" stroke-dasharray="8 6"/>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="start"><tspan x="64" y="897">Acceptance requires all eleven distinct assertions to pass</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="65" y="934">Gateway denials require a successful authorized control (Q02). Sibling denial requires the own-project control (Q07). Q09-Q10 cover the</tspan><tspan x="65" y="961.5">existing agent and its completed response.</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="36" text-anchor="start"><tspan x="40" y="66">03 / Reachability, identity and permissions</tspan></text>
+<text fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="start"><tspan x="40" y="110">Every assertion shown matched its expected result in the reference lab. Expected denials are passing security tests.</tspan></text>
+</svg>
