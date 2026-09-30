@@ -151,7 +151,7 @@ The final pair is runtime Deploy followed by quick verification. Q11 is this pro
 
 ## Repeat Quick Tests
 
-Run the following command against the retained environment. It exercises the existing agent without creation, replacement or deletion. Require exactly the eleven Q01-Q11 assertions in [Tests.docx](../Tests.docx) to be PASS; missing or nonpassing results fail acceptance.
+Run the following command against the retained environment. It exercises the existing agent without creation, replacement or deletion. Require exactly the eleven Q01-Q11 assertions in [Tests And Results](Tests.md) to be PASS; missing or nonpassing results fail acceptance.
 
 ```powershell
 ./scripts/Invoke-QuickLab.ps1 -StatePath $state -RunLive
@@ -180,8 +180,8 @@ Complete means the owned groups and their inventoried ARM resources are absent. 
 
 ## Design Alignment
 
-This procedure deploys an illustrative gateway caller allowlist. Production deployments use the Entra app-role pattern in [Governance.docx](../Governance.docx), section 3.3: a registered gateway API, application-permission assignments, matching caller and Foundry connection audiences, and validation of the required `roles` claim. The lab procedure does not implement or test that pattern; APIM's separate backend identity and permissions remain required.
+This procedure deploys an illustrative gateway caller allowlist. Production deployments use the Entra app-role pattern in [Governance](Governance.md#33-production-app-role-authorization), section 3.3: a registered gateway API, application-permission assignments, matching caller and Foundry connection audiences, and validation of the required `roles` claim. The lab procedure does not implement or test that pattern; APIM's separate backend identity and permissions remain required.
 
 The architecture follows Microsoft's [Foundry private networking](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks) and [network isolation](https://learn.microsoft.com/azure/foundry/agents/concepts/networking-options) patterns, with project-scoped authorization, constrained data roles and [centralized gateway authentication](https://learn.microsoft.com/azure/architecture/ai-ml/guide/azure-openai-gateway-custom-authentication#general-recommendations). Under the [APIM managed identity security guidance](https://learn.microsoft.com/azure/api-management/api-management-howto-use-managed-service-identity#security-considerations-for-managed-identities), policy editing is an administrative privilege: editors can act through the gateway's identity, so ordinary callers must not receive it. This alignment is not a complete production-security certification.
 
-Before production use, separately qualify availability, recovery, capacity, operational telemetry, effective inherited permissions and application content-safety requirements. Use [Tests.docx](../Tests.docx) for the precise functional acceptance claims.
+Before production use, separately qualify availability, recovery, capacity, operational telemetry, effective inherited permissions and application content-safety requirements. Use [Tests And Results](Tests.md) for the precise functional acceptance claims.

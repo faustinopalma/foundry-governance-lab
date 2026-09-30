@@ -2,7 +2,7 @@
 
 The lab separates model hosting, shared integration services and application projects. It demonstrates authenticated inference through a private gateway and selected project-level access controls. The model and agent run in managed Azure services; a private virtual machine executes the tests.
 
-This document describes the delivered profile. Logical names such as A-dev and models identify component roles without exposing environment-specific identifiers. [Lifecycle.docx](../Lifecycle.docx) contains the creation and removal procedure; [Tests.docx](../Tests.docx) defines the eleven passing reference assertions and their scope.
+This document describes the delivered profile. Logical names such as A-dev and models identify component roles without exposing environment-specific identifiers. [Lab Lifecycle](Lifecycle.md) contains the creation and removal procedure; [Tests And Results](Tests.md) defines the eleven passing reference assertions and their scope.
 
 ## 1. Resource Groups And Responsibilities
 
@@ -48,7 +48,7 @@ The lab-inference API exposes one HTTPS operation: POST /openai/deployments/lab-
 | Backend credentials | Remove any api-key header and authenticate with APIM's own managed identity. The caller's identity is not forwarded as the model credential. |
 | Usage controls | Configure 20 calls per minute and a 200-call quota per 24-hour period, using shared counters rather than a separate allowance for each caller. |
 
-**Illustrative authorization, not the production pattern.** The lab validates Entra tokens but authorizes callers through an explicit object-ID allowlist in the APIM policy. Production deployments under [Governance.docx](../Governance.docx), section 3.3, use Entra app roles: register the gateway API, assign its application permissions to the calling identities, and require the appropriate signed `roles` claim after token validation. Configure callers and Foundry connections to request tokens for that API instead of the lab's Cognitive Services audience. APIM's separate managed-identity authentication and Azure RBAC permission on the model backend remain necessary. The delivered templates and tests implement the illustrative allowlist, not this production app-role pattern.
+**Illustrative authorization, not the production pattern.** The lab validates Entra tokens but authorizes callers through an explicit object-ID allowlist in the APIM policy. Production deployments under [Governance](Governance.md#33-production-app-role-authorization), section 3.3, use Entra app roles: register the gateway API, assign its application permissions to the calling identities, and require the appropriate signed `roles` claim after token validation. Configure callers and Foundry connections to request tokens for that API instead of the lab's Cognitive Services audience. APIM's separate managed-identity authentication and Azure RBAC permission on the model backend remain necessary. The delivered templates and tests implement the illustrative allowlist, not this production app-role pattern.
 
 The rate and quota thresholds are configuration values, not tested acceptance results or a monetary budget. Threshold enforcement has not been exercised in the quick suite. The quota-by-key documentation is inconsistent about v2 tier applicability; its configured presence must not be treated as verified quota enforcement. No semantic cache, multi-model routing, failover backend or additional APIM content-safety policy is configured.
 
@@ -171,7 +171,7 @@ Production availability, disaster recovery, load capacity, content safety, compl
 
 ## References
 
-- [Customer lifecycle](../Lifecycle.docx) and [acceptance assertions](../Tests.docx).
+- [Customer lifecycle](Lifecycle.md) and [acceptance assertions](Tests.md).
 - [Diagram files and editable sources](../diagrams/README.md).
 - [Foundry private networking](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks) and [managed identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview).
 - [APIM outbound VNet integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound) and [quota policy reference](https://learn.microsoft.com/azure/api-management/quota-by-key-policy).

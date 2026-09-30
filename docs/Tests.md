@@ -104,13 +104,13 @@ The acceptance profile contains the eleven assertions below. All eleven matched 
 
 The lab behaves as expected for this acceptance profile: authorized gateway and A-dev agent requests succeed; anonymous, disallowed-caller, wrong-audience, wrong-route and sibling-project requests are rejected as specified; the agent version and scoped role configuration match their intended values.
 
-The gateway authorization example is illustrative. Q02 and Q04 exercise the policy's object-ID allowlist, not Entra app roles. Production deployments use the app-role pattern in [Governance.docx](../Governance.docx), section 3.3, with tokens intended for the registered gateway API and the required `roles` claim. Acceptance must then verify authorized direct and agent requests and rejection of missing or incorrect roles and wrong audiences; the existing Q01-Q11 results do not establish those production controls.
+The gateway authorization example is illustrative. Q02 and Q04 exercise the policy's object-ID allowlist, not Entra app roles. Production deployments use the app-role pattern in [Governance](Governance.md#33-production-app-role-authorization), section 3.3, with tokens intended for the registered gateway API and the required `roles` claim. Acceptance must then verify authorized direct and agent requests and rejection of missing or incorrect roles and wrong audiences; the existing Q01-Q11 results do not establish those production controls.
 
 This is a functional and access-control lab. Production availability, disaster recovery, load capacity, complete effective-permission analysis and independent end-to-end telemetry attribution are separate qualification activities. They are not assertions in this profile. Case dev/test projects share a case agent subnet; project authorization is not a claim of network isolation between those projects.
 
 ## Run The Assertions
 
-Create the environment using [Lifecycle.docx](../Lifecycle.docx). From the package root, use the resulting private state file with the command below. This repeats the eleven assertions without creating, replacing or deleting the agent. It does not tear down the lab.
+Create the environment using [Lab Lifecycle](Lifecycle.md). From the package root, use the resulting private state file with the command below. This repeats the eleven assertions without creating, replacing or deleting the agent. It does not tear down the lab.
 
 ```powershell
 $state = Read-Host 'Absolute path to the private lab state.json'
