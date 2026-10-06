@@ -13,13 +13,20 @@ try {
     $state = Read-LabRun $StatePath
     $null = Confirm-LabRunContext $state
     Assert-LabTransition $state $Phase
+    if ($state['lifecycleMode'] -ceq 'independent' -and $Action -ne 'Status') {
+        if ($state.pendingPhase) { throw 'Reconcile the pending submission with Status; never replay it' }
+        Assert-LabDeploymentIdle $state
+        if ($Phase -eq 'activate') { Assert-LabActivationInfrastructure $state }
+    }
     $deploymentName = "fgl-$($state.labId)-$Phase"
     $templatePath = Join-Path $state.runDirectory "$Phase.template.json"
     $parametersPath = Join-Path $state.runDirectory "$Phase.parameters.json"
     if ($Action -eq 'Preview') {
         & $state.bicepExecutable build (Join-Path $PSScriptRoot '../infra/main.bicep') --outfile $templatePath
         if ($LASTEXITCODE -ne 0) { throw 'Bicep compilation failed' }
-        & (Join-Path $PSScriptRoot '../tests/Test-CompiledTemplate.ps1') -Path $templatePath
+        if ($state['lifecycleMode'] -cne 'independent') {
+            & (Join-Path $PSScriptRoot '../tests/Test-CompiledTemplate.ps1') -Path $templatePath
+        }
         $parameters = Get-Content -LiteralPath (Join-Path $state.runDirectory 'parameters.json') -Raw | ConvertFrom-Json -AsHashtable
         Assert-LabParameters $state $parameters.parameters
         $parameters.parameters.phase.value = $Phase

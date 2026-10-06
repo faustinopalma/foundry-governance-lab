@@ -101,6 +101,44 @@ try {
     Confirm-Rejected { Assert-LabTransition $state 'bootstrap' }
     $state.destroyAuthorized = $false
     Confirm-Rejected { Assert-LabTransition $state 'destroy' }
+    $independentState = $state.Clone()
+    $independentState.lifecycleMode = 'independent'
+    $independentState.phase = 'lock'
+    $independentState.privateAccessVerified = $false
+    Confirm-Accepted { Assert-LabTransition $independentState 'activate' }
+    Confirm-Rejected { Assert-LabTransition $independentState 'destroy' }
+    Confirm-Accepted { if ($independentState.privateAccessVerified) { throw 'Creation manufactured test evidence' } }
+    foreach ($badMode in @('unknown',$true,1,$null)) {
+        $independentState.lifecycleMode = $badMode
+        Confirm-Rejected { Assert-LabState $independentState }
+    }
+    & {
+        . (Join-Path $PSScriptRoot '../scripts/Invoke-Lab.ps1') -DefinitionsOnly
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Create' $false $false $false @() 'Evidence' }
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Create' $true $true $false @('Gateway') 'Evidence' }
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Create' $true $false $true @() 'Evidence' }
+        Confirm-Accepted { Assert-LabLifecycleRequest 'Create' $true $false $false @() 'Evidence' }
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Test' $false $true $false @() 'Evidence' }
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Test' $false $false $false @('Gateway') 'Evidence' }
+        Confirm-Accepted { Assert-LabLifecycleRequest 'Test' $false $true $false @('Gateway') 'Evidence' }
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Status' $false $true $false @('Gateway') 'Evidence' }
+        Confirm-Rejected { Assert-LabLifecycleRequest 'Teardown' $false $false $false @() 'Advance' }
+        Confirm-Accepted { Assert-LabLifecycleRequest 'Teardown' $false $false $false @() 'Evidence' }
+        Confirm-Accepted { Assert-LabLifecycleRequest 'Teardown' $false $false $true @() 'Advance' }
+        $nextPhases = @{'not-deployed'='bootstrap'; bootstrap='lock'; lock='activate'; activate=$null}
+        foreach ($currentPhase in $nextPhases.Keys) {
+            Confirm-Accepted { if ((Get-LabNextCreationPhase @{phase=$currentPhase;pendingPhase=$null}) -cne $nextPhases[$currentPhase]) { throw 'Wrong next phase' } }
+        }
+        Confirm-Rejected { Get-LabNextCreationPhase @{phase='bootstrap';pendingPhase='lock'} }
+        Confirm-Rejected { Get-LabNextCreationPhase @{phase='destroyed';pendingPhase=$null} }
+        $missingState = Join-Path ([IO.Path]::GetTempPath()) ("fgl-missing-$([guid]::NewGuid().ToString('N'))/state.json")
+        $entryFailure = ''
+        try { $null = & (Join-Path $PSScriptRoot '../scripts/Invoke-Lab.ps1') -Action Status -StatePath $missingState } catch { $entryFailure = $_.Exception.Message }
+        Confirm-Accepted { if ($entryFailure -notlike 'Run state does not exist*') { throw "Unexpected Status failure: $entryFailure" } }
+        $entryFailure = ''
+        try { $null = & (Join-Path $PSScriptRoot '../scripts/Invoke-Lab.ps1') -Action Create -StatePath $missingState -ApproveDeployment } catch { $entryFailure = $_.Exception.Message }
+        Confirm-Accepted { if ($entryFailure -notlike 'First Create requires*') { throw "Unexpected Create failure: $entryFailure" } }
+    }
     $state.destroyAuthorized = $true
     $state.phase = 'destroyed'
     Confirm-Rejected { Assert-LabTransition $state 'bootstrap' }
@@ -208,6 +246,43 @@ try {
             $originalHash = (Get-FileHash $statePath).Hash
             Confirm-Rejected { & (Join-Path $PSScriptRoot '../scripts/New-LabState.ps1') -StatePath $statePath -SubscriptionId $state.subscriptionId -TenantId $state.tenantId -LabId $state.labId -MinimalPrompt:$minimalPrompt }
             Confirm-Accepted { if ((Get-FileHash $statePath).Hash -ne $originalHash) { throw 'Existing state overwritten' } }
+            & {
+                $executionAst = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../scripts/LabExecution.psm1'), [ref]$null, [ref]$null)
+                foreach ($definition in $executionAst.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Assert-LabDeploymentIdle','Assert-LabActivationInfrastructure') }, $false)) {
+                    . ([scriptblock]::Create($definition.Extent.Text))
+                }
+                function az { throw 'Live Azure forbidden in activation fixtures' }
+                function Invoke-WebRequest { throw 'Data-plane traffic forbidden in activation fixtures' }
+                function Confirm-LabRunContext { return @{name=$profileState.resourceGroups[0]} }
+                function Write-LabEvent([hashtable]$State, [string]$Name, [hashtable]$Data) {
+                    if ($Name -cne 'activation-infrastructure' -or $Data.runtimeTestPerformed -ne $false -or $Data.managementOnly -ne $true) { throw 'Invalid activation evidence' }
+                    $activationCounter.events++
+                }
+                function Invoke-LabAz([hashtable]$State, [string[]]$Arguments, [string]$Label) {
+                    switch ($Label) {
+                        'lifecycle-roots' { return @{name="fgl-$($State.labId)-lock";properties=@{provisioningState=$(if ($activationScenario -eq 'root-running') { 'Running' } else { 'Succeeded' })}} }
+                        'lifecycle-nested' { return @{properties=@{provisioningState=$(if ($activationScenario -eq 'nested-running') { 'Running' } else { 'Succeeded' })}} }
+                        'activation-lock' { return @{properties=@{provisioningState=$(if ($activationScenario -eq 'lock-failed') { 'Failed' } else { 'Succeeded' })}} }
+                        'activation-resource' {
+                            return @{id=$Arguments[3]; tags=@{'fgl-owner'=$(if ($activationScenario -eq 'foreign-resource') { $State.tenantId } else { $State.ownershipId });'fgl-lab'=$State.labId}; properties=@{provisioningState='Succeeded';publicNetworkAccess=$(if ($activationScenario -eq 'public-service') { 'Enabled' } else { 'Disabled' });disableLocalAuth=($activationScenario -ne 'local-auth')}}
+                        }
+                        'activation-endpoint' {
+                            $activationTarget = @($targets | Where-Object endpointId -eq $Arguments[3])[0]
+                            return @{id=$Arguments[3]; tags=@{'fgl-owner'=$State.ownershipId;'fgl-lab'=$State.labId}; properties=@{provisioningState='Succeeded';privateLinkServiceConnections=@(@{properties=@{privateLinkServiceId=$(if ($activationScenario -eq 'wrong-target') { $lab.runner } else { $activationTarget.resourceId });groupIds=@($activationTarget.groupId);privateLinkServiceConnectionState=@{status=$(if ($activationScenario -eq 'unapproved') { 'Pending' } else { 'Approved' })}}})}}
+                        }
+                        default { throw "Unexpected activation transport: $Label" }
+                    }
+                }
+                foreach ($activationScenario in @('valid','root-running','nested-running','lock-failed','foreign-resource','public-service','local-auth','wrong-target','unapproved')) {
+                    $activationCounter = @{events=0}
+                    if ($activationScenario -eq 'valid') {
+                        Confirm-Accepted { Assert-LabDeploymentIdle $profileState; Assert-LabActivationInfrastructure $profileState; if ($activationCounter.events -ne 1) { throw 'Missing management-only evidence' } }
+                    } else {
+                        Confirm-Rejected { Assert-LabDeploymentIdle $profileState; Assert-LabActivationInfrastructure $profileState }
+                        Confirm-Accepted { if ($activationCounter.events) { throw 'Rejected infrastructure produced success evidence' } }
+                    }
+                }
+            }
             foreach ($scenario in @('valid','foreign-endpoint','foreign-nic','wrong-target','missing-endpoint','unapproved','public-gateway')) {
                 & {
                     function Import-Module { }

@@ -7,6 +7,9 @@ try {
     Import-Module (Join-Path $PSScriptRoot 'LabExecution.psm1')
     Import-Module (Join-Path $PSScriptRoot 'LabSafety.psm1')
     $state = Read-LabRun $StatePath
+    if ($state['lifecycleMode'] -ceq 'independent' -and $Action -notin @('Prepare','VerifyPrivate') -and $state.privateAccessVerified -ne $true) {
+        throw 'Request the PrivateNetwork test group before runtime tests; creation does not qualify connectivity'
+    }
     if ($state['minimalPrompt'] -eq $true -and $Action -notin @('Prepare','VerifyPrivate','MinimalPrompt')) { throw 'This action requires the full profile; use the dedicated minimal prompt diagnostic harness' }
     if ($state.phase -notin @('bootstrap','lock','activate') -or $state.pendingPhase) { throw 'A completed deployment phase is required' }
     $lab = Get-Content (Join-Path $state.runDirectory 'outputs.json') -Raw | ConvertFrom-Json -AsHashtable -Depth 100
@@ -52,7 +55,12 @@ try {
     $uploads['/var/lib/fgl-private/state.json'] = [Text.Encoding]::UTF8.GetBytes(($remoteState | ConvertTo-Json -Depth 20))
     $uploads['/var/lib/fgl-private/outputs.json'] = [Text.Encoding]::UTF8.GetBytes(($lab | ConvertTo-Json -Depth 100))
     if ($Action -eq 'VerifyPrivate') {
-        if ($state.phase -ne 'lock') { throw 'Private verification requires completed lock phase' }
+        if ($state.phase -ne 'lock' -and -not ($state['lifecycleMode'] -ceq 'independent' -and $state.phase -eq 'activate')) { throw 'Private verification requires completed lock or independent activation phase' }
+        if ($state['lifecycleMode'] -ceq 'independent') {
+            $state.privateAccessVerified = $false
+            $state.Remove('privateRunnerEvidence')
+            Save-LabRun $state $StatePath
+        }
         $targets = @(Get-LabPrivateTargets $state $lab)
         $uploads['/var/lib/fgl-private/targets.json'] = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $targets -Depth 20))
         $privateProbe = @'

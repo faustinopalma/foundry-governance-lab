@@ -11,6 +11,7 @@ function Assert-LabState {
         }
     }
     if ($State.labId -cnotmatch '^[a-z0-9]{6,12}$') { throw 'Invalid lab identifier' }
+    if ($State.ContainsKey('lifecycleMode') -and ($State.lifecycleMode -isnot [string] -or $State.lifecycleMode -cne 'independent')) { throw 'Unknown lifecycle mode' }
     if ($State.ContainsKey('minimalPrompt') -and $State.minimalPrompt -isnot [bool]) { throw 'minimalPrompt must be a boolean' }
     $suffixes = if ($State['minimalPrompt'] -eq $true) { @('models', 'integration', 'case-a') } else { @('models', 'integration', 'case-a', 'case-b') }
     $expected = @($suffixes | ForEach-Object { "rg-fgl-$($State.labId)-$_" })
@@ -126,7 +127,7 @@ function Assert-LabTransition {
     }
     if (-not $allowed.ContainsKey([string]$State.phase) -or $Target -notin $allowed[$State.phase]) { throw 'Forbidden lifecycle transition' }
     if ($State.ContainsKey('pendingPhase') -and $State.pendingPhase -and $Target -notin @($State.pendingPhase, 'destroy')) { throw 'Unfinished phase must be reconciled before advancing' }
-    if ($Target -eq 'activate' -and $State.phase -eq 'lock' -and $State.privateAccessVerified -ne $true) { throw 'Private access has not been verified' }
+    if ($Target -eq 'activate' -and $State.phase -eq 'lock' -and $State['lifecycleMode'] -cne 'independent' -and $State.privateAccessVerified -ne $true) { throw 'Private access has not been verified' }
     if ($Target -eq 'destroy' -and $State.destroyAuthorized -ne $true) { throw 'Teardown authorization is missing' }
 }
 

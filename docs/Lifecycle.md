@@ -1,6 +1,10 @@
 # Customer Lab Lifecycle
 
-Deploy the [four-group lab profile](Components.md#1-resource-groups-and-responsibilities) with a fresh lab identifier and private run directory. Each new environment must complete its own deployment and [acceptance checks](Tests.md).
+For new infrastructure-only creation, use [Independent Lab Lifecycle](independent-lifecycle.md), including its current topology/lifecycle diagrams and `Invoke-Lab.ps1` commands. Creation, targeted tests and teardown are separate requests. The new core command does not claim the expanded Standard profile below.
+
+This page preserves the **advanced expanded reference workflow**, which combines provisioning, private probes and agent acceptance. Use it only with explicit approval for that larger scope and its live tests, or to operate an existing matching run. Its figure and Word download describe that earlier procedure, not the independent coordinator. Never migrate historical state by editing its lifecycle marker.
+
+Deploy the [four-group expanded lab profile](Components.md#1-resource-groups-and-responsibilities) with a fresh lab identifier and private run directory. Acceptance is a separately authorized activity and is required to claim validated runtime behavior, not to grant teardown permission.
 
 ![Figure 1. Each deployment stage has a completion gate. Repeat tests preserve the agent and the lab; teardown requires separate approval.](../diagrams/06-lifecycle.png "inline")
 
@@ -25,7 +29,7 @@ foreach ($template in 'main','standard','expansion-foundation','expansion-standa
 
 Execute each command separately and review its result before continuing. A successful process exit is not deployment completion. After each deployment submission, use only its matching `Status` command until the receipt confirms successful completion and verified postconditions; do not replay `Preview` or `Deploy` while pending. Account-host reuse completes during `Deploy` and has no subsequent `Status` step. Stop on unexpected resources, ownership mismatches, blocked checks or failed deployments. Leave inherited external Azure Policy assignments unchanged; incompatible effects require review, not policy removal or relaxed validators.
 
-Initialization requires explicit consent to both deployment and eventual destruction. The approval switches below record that consent; they are not a substitute for it. Set the existing CLI configuration path when prompted. The generated lab identifier and run directory must be unused.
+Initialization requires deployment consent only and never authorizes eventual destruction. The approval switch below records the explicit creation request. Set the existing CLI configuration path when prompted. The generated lab identifier and run directory must be unused. This advanced sequence also runs live tests; obtain their explicit approval separately before executing those commands.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -34,7 +38,7 @@ $azureConfig = Read-Host 'Absolute path to the reviewed, authenticated Azure CLI
 $labId = 'cust' + [guid]::NewGuid().ToString('N').Substring(0, 8)
 $runDirectory = Join-Path $env:LOCALAPPDATA "CustomerLab/$labId"
 $state = Join-Path $runDirectory 'state.json'
-./scripts/Initialize-LabRun.ps1 -RunDirectory $runDirectory -AzureConfigDirectory $azureConfig -LabId $labId -BicepExecutable $compiler -MinimalPrompt -ApproveDeployment -ApproveDestroy
+./scripts/Initialize-LabRun.ps1 -RunDirectory $runDirectory -AzureConfigDirectory $azureConfig -LabId $labId -BicepExecutable $compiler -MinimalPrompt -ApproveDeployment
 ```
 
 ## Create Minimal And Standard

@@ -67,6 +67,46 @@ function Confirm-LabRunContext([hashtable]$State) {
     return @($groups | Where-Object { $_.name -in $State.resourceGroups })
 }
 
+function Assert-LabDeploymentIdle([hashtable]$State) {
+    $roots = @(Invoke-LabAz $State @('deployment','sub','list') 'lifecycle-roots')
+    foreach ($root in $roots) {
+        if ($root.name -like "fgl-$($State.labId)-*" -and $root.properties.provisioningState -notin @('Succeeded','Failed','Canceled')) {
+            throw "Deployment is still active: $($root.name). Reconcile Status; do not resubmit."
+        }
+    }
+    foreach ($group in @(Confirm-LabRunContext $State)) {
+        $nested = @(Invoke-LabAz $State @('deployment','group','list','--resource-group',$group.name) 'lifecycle-nested')
+        if (@($nested | Where-Object { $_.properties.provisioningState -notin @('Succeeded','Failed','Canceled') }).Count) {
+            throw "Nested deployment is still active in $($group.name)"
+        }
+    }
+}
+
+function Assert-LabActivationInfrastructure([hashtable]$State) {
+    $root = Invoke-LabAz $State @('deployment','sub','show','--name',"fgl-$($State.labId)-lock") 'activation-lock'
+    if ($root.properties.provisioningState -cne 'Succeeded') { throw 'Completed lock deployment required' }
+    $lab = Get-Content -LiteralPath (Join-Path $State.runDirectory 'outputs.json') -Raw | ConvertFrom-Json -AsHashtable -Depth 100
+    foreach ($target in @(Get-LabPrivateTargets $State $lab)) {
+        $version = switch ($target.key) {
+            'gateway' { '2024-05-01' }
+            { $_ -like 'registry-*' } { '2023-07-01' }
+            default { '2026-05-01' }
+        }
+        $resource = Invoke-LabAz $State @('resource','show','--ids',$target.resourceId,'--api-version',$version) 'activation-resource'
+        if ($resource.id -ine $target.resourceId -or $resource.tags['fgl-owner'] -cne $State.ownershipId -or $resource.tags['fgl-lab'] -cne $State.labId -or $resource.properties.provisioningState -ine 'Succeeded' -or $resource.properties.publicNetworkAccess -cne 'Disabled') {
+            throw 'Activation requires owned, provisioned services with public access disabled'
+        }
+        if ($target.key -eq 'models' -or $target.key -like 'case-*') {
+            if ($resource.properties.disableLocalAuth -isnot [bool] -or -not $resource.properties.disableLocalAuth) { throw 'Foundry local authentication must remain disabled' }
+        }
+        $endpoint = Invoke-LabAz $State @('resource','show','--ids',$target.endpointId,'--api-version','2024-05-01') 'activation-endpoint'
+        $connections = @($endpoint.properties.privateLinkServiceConnections)
+        if ($endpoint.id -ine $target.endpointId -or $endpoint.tags['fgl-owner'] -cne $State.ownershipId -or $endpoint.tags['fgl-lab'] -cne $State.labId -or $endpoint.properties.provisioningState -ine 'Succeeded' -or $connections.Count -ne 1) { throw 'Owned provisioned private endpoint required' }
+        if ($connections[0].properties.privateLinkServiceId -ine $target.resourceId -or $connections[0].properties.privateLinkServiceConnectionState.status -cne 'Approved' -or @($connections[0].properties.groupIds).Count -ne 1 -or $connections[0].properties.groupIds[0] -cne $target.groupId) { throw 'Private endpoint target or approval mismatch' }
+    }
+    Write-LabEvent $State 'activation-infrastructure' @{managementOnly=$true; runtimeTestPerformed=$false}
+}
+
 function Get-LabPrivateTargets([hashtable]$State, [hashtable]$Lab) {
     Assert-LabState $State
     $minimalPrompt = $State['minimalPrompt'] -eq $true
@@ -122,4 +162,4 @@ function Assert-LabPrivateReport([array]$Targets, [hashtable]$Report, [hashtable
     }
 }
 
-Export-ModuleMember -Function Read-LabRun, Save-LabRun, Write-LabEvent, Invoke-LabAz, Confirm-LabRunContext, Get-LabPrivateTargets, Assert-LabPrivateReport
+Export-ModuleMember -Function Read-LabRun, Save-LabRun, Write-LabEvent, Invoke-LabAz, Confirm-LabRunContext, Get-LabPrivateTargets, Assert-LabPrivateReport, Assert-LabDeploymentIdle, Assert-LabActivationInfrastructure

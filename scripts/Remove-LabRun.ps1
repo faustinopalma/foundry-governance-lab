@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [string]$StatePath,
-    [ValidateSet('Evidence','Dependencies','Next','Status')][string]$Action = 'Status',
+    [ValidateSet('Evidence','Advance','Dependencies','Next','Status')][string]$Action = 'Status',
+    [switch]$ApproveTeardown,
+    [string]$ConfirmLabId,
     [switch]$DefinitionsOnly
 )
 
@@ -74,7 +76,7 @@ function Assert-TeardownOwned([hashtable]$State, $Resource, [string]$Id, [string
 }
 
 function Get-TeardownPreparation([hashtable]$State, [array]$Groups) {
-    if ($State['minimalPrompt'] -eq $true) { Assert-MinimalTeardownAcceptance $State }
+    if ($State['minimalPrompt'] -eq $true -and $State['lifecycleMode'] -cne 'independent') { Assert-MinimalTeardownAcceptance $State }
     $standardBinding = Get-StandardTeardownBinding $State
     Assert-LabTransition $State 'destroy'
     $minimalPrompt = $State['minimalPrompt'] -eq $true
@@ -96,7 +98,7 @@ function Get-TeardownPreparation([hashtable]$State, [array]$Groups) {
             else { Assert-StandardTeardownHost $State $child $standardBinding -Account:($child.id -ieq $State.standard.accountHostId) }
         }
     }
-    if (-not $resources.Count -or -not $capturedGroups.Count) { throw 'Empty teardown evidence cannot authorize deletion' }
+    if (-not $capturedGroups.Count -or (-not $resources.Count -and $State['lifecycleMode'] -cne 'independent')) { throw 'Empty teardown evidence cannot authorize deletion' }
     foreach ($group in $capturedGroups) {
         Assert-LabGroupOwnership $State $group
         if ($group.id -in $State.preexistingGroupIds) { throw 'Pre-existing group cannot be adopted' }
@@ -150,10 +152,10 @@ function Get-TeardownPreparation([hashtable]$State, [array]$Groups) {
     $scopeType = 'Microsoft.Insights/privateLinkScopes'
     $scopeId = "/subscriptions/$($State.subscriptionId)/resourceGroups/rg-fgl-$($State.labId)-integration/providers/$scopeType/ampls-fgl-$($State.labId)"
     $scopes = @($resources | Where-Object type -eq $scopeType)
-    if ($scopes.Count -ne 1) { throw 'Exactly one captured AMPLS parent is required' }
-    Assert-TeardownOwned $State $scopes[0] $scopeId $scopeType
+    if ($scopes.Count -gt 1 -or ($scopes.Count -eq 0 -and $State['lifecycleMode'] -cne 'independent')) { throw 'Exactly one captured AMPLS parent is required' }
+    if ($scopes.Count) { Assert-TeardownOwned $State $scopes[0] $scopeId $scopeType }
     $integrationIsNext = $next.name -eq "rg-fgl-$($State.labId)-integration"
-    if ($freshGroups.ContainsKey("rg-fgl-$($State.labId)-integration") -and (-not $integrationIsNext -or $scopeId -in $inventory.id)) {
+    if ($scopes.Count -and $freshGroups.ContainsKey("rg-fgl-$($State.labId)-integration") -and (-not $integrationIsNext -or $scopeId -in $inventory.id)) {
         $scope = Invoke-TeardownRest $State $scopeId '2021-07-01-preview'
         Assert-TeardownOwned $State $scope $scopeId $scopeType
         $links = Get-TeardownItems (Invoke-TeardownRest $State "$scopeId/scopedResources" '2021-07-01-preview') 'value'
@@ -172,7 +174,7 @@ function Get-TeardownPreparation([hashtable]$State, [array]$Groups) {
                 $dependencies += @{id=$link.id; version='2021-07-01-preview'; kind='AMPLS link'}
             }
         }
-    } elseif (-not $integrationIsNext) { throw 'AMPLS parent group is absent before its dependent groups' }
+    } elseif ($scopes.Count -and -not $integrationIsNext) { throw 'AMPLS parent group is absent before its dependent groups' }
     foreach ($account in @($inventory | Where-Object type -eq 'Microsoft.CognitiveServices/accounts')) {
         $captured = @($resources | Where-Object id -eq $account.id)[0]
         Assert-TeardownOwned $State $captured $account.id 'Microsoft.CognitiveServices/accounts'
@@ -218,11 +220,41 @@ function Get-TeardownPreparation([hashtable]$State, [array]$Groups) {
     return @{group=$next; dependencies=$dependencies}
 }
 
-function Invoke-LabTeardown([string]$StatePath, [string]$Action) {
+function Invoke-LabTeardown([string]$StatePath, [string]$Action, [bool]$TeardownApproved = $false, [string]$ConfirmedLabId = '') {
     $state = Read-LabRun $StatePath
-    if ($state['minimalPrompt'] -eq $true) { Assert-MinimalTeardownAcceptance $state }
+    $independent = $state['lifecycleMode'] -ceq 'independent'
+    if ($independent -and $Action -in @('Advance','Dependencies','Next')) {
+        if (-not $TeardownApproved -or $ConfirmedLabId -cne $state.labId) { throw 'This deletion requires fresh ApproveTeardown and the exact ConfirmLabId' }
+        $state.destroyAuthorized = $true
+    }
+    if ($state['minimalPrompt'] -eq $true -and -not $independent) { Assert-MinimalTeardownAcceptance $state }
     $standardBinding = Get-StandardTeardownBinding $state
     $groups = @(Confirm-LabRunContext $state)
+    if ($independent -and $state['teardownPending']) {
+        $pending = $state.teardownPending
+        Assert-LabResourceId $state $pending.id
+        $present = $true
+        if ($pending.kind -ceq 'resource group') {
+            $present = $pending.id -in $groups.id
+        } elseif ($pending.kind -cin @('AMPLS link','Foundry project','Foundry account')) {
+            $groupName = ($pending.id -split '/')[4]
+            if ($groupName -notin $groups.name) { $present = $false }
+            elseif ($pending.kind -ceq 'Foundry account') {
+                $items = Get-TeardownItems (Invoke-LabAz $state @('resource','list','--resource-group',$groupName,'--query','{items:@}') 'teardown-pending-account') 'items'
+                $present = $pending.id -in $items.id
+            } else {
+                $collection = $pending.id.Substring(0, $pending.id.LastIndexOf('/'))
+                $version = if ($pending.kind -ceq 'AMPLS link') { '2021-07-01-preview' } else { '2026-05-01' }
+                $items = Get-TeardownItems (Invoke-TeardownRest $state $collection $version) 'value'
+                $present = $pending.id -in $items.id
+            }
+        } else { throw 'Unknown pending deletion kind; review private state without resubmitting' }
+        if ($present) { Write-Output 'Deletion pending or submission uncertain; target still exists. Observe Status; no automatic resubmission.'; return }
+        $state.Remove('teardownPending')
+        $state.destroyAuthorized = $false
+        Save-LabRun $state $StatePath
+        if ($Action -in @('Advance','Dependencies','Next')) { $state.destroyAuthorized = $true }
+    }
     if ($Action -eq 'Evidence') {
         $snapshot = @{capturedAt=[DateTimeOffset]::UtcNow.ToString('o'); groups=$groups; resources=@(); deployments=@(); children=@()}
         foreach ($group in $groups) {
@@ -250,12 +282,19 @@ function Invoke-LabTeardown([string]$StatePath, [string]$Action) {
         $state.teardownEvidence = @{path=$snapshotPath; sha256=(Get-FileHash $snapshotPath).Hash}
         Save-LabRun $state $StatePath
         Write-Output "Evidence captured outside Azure: $($groups.Count) owned groups; $($snapshot.resources.Count) resources."
-    } elseif ($Action -in @('Dependencies','Next')) {
+    } elseif ($Action -in @('Advance','Dependencies','Next')) {
         $plan = Get-TeardownPreparation $state $groups
         $next = $plan.group
         if ($plan.dependencies.Count) {
             if ($Action -eq 'Next') { throw "Dependencies remain for $($next.name). Run -Action Dependencies before -Action Next." }
             $dependency = $plan.dependencies[0]
+            if ($independent) {
+                $state.teardownPending = @{id=$dependency.id; kind=$dependency.kind; requestedAt=[DateTimeOffset]::UtcNow.ToString('o')}
+                $state.phase = 'destroy'
+                $state.pendingPhase = $null
+                $state.destroyAuthorized = $false
+                Save-LabRun $state $StatePath
+            }
             $null = Invoke-TeardownRest $state $dependency.id $dependency.version 'delete'
             Write-Output "Deletion submitted for one exact owned $($dependency.kind). Run Dependencies again to recheck completion before Next."
             return
@@ -263,6 +302,10 @@ function Invoke-LabTeardown([string]$StatePath, [string]$Action) {
         if ($Action -eq 'Dependencies') { Write-Output "Dependencies clear for $($next.name). Run -Action Next; all guards will be checked again."; return }
         $state.phase = 'destroy'
         $state.pendingPhase = $null
+        if ($independent) {
+            $state.destroyAuthorized = $false
+            $state.teardownPending = @{id=$next.id; kind='resource group'; requestedAt=[DateTimeOffset]::UtcNow.ToString('o')}
+        }
         Save-LabRun $state $StatePath
         $null = Invoke-LabAz $state @('group','delete','--name',$next.name,'--yes','--no-wait') "delete-$($next.name)"
         Write-Output "Deletion submitted for one exact owned group: $($next.name)."
@@ -292,7 +335,7 @@ try {
     Import-Module (Join-Path $PSScriptRoot 'LabSafety.psm1')
     Import-Module (Join-Path $PSScriptRoot 'PublicSource.psm1')
     Import-Module (Join-Path $PSScriptRoot 'MinimalTeardownAcceptance.psm1')
-    Invoke-LabTeardown $StatePath $Action
+    Invoke-LabTeardown $StatePath $Action ([bool]$ApproveTeardown) $ConfirmLabId
 } finally {
     Write-Output "elapsed: $([math]::Round($timer.Elapsed.TotalSeconds,1))s"
 }

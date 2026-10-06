@@ -15,7 +15,8 @@ $previous = $env:AZURE_CONFIG_DIR
 try {
     Import-Module (Join-Path $PSScriptRoot 'LabExecution.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot 'PublicSource.psm1')
-    if (-not $ApproveDeployment -or -not $ApproveDestroy) { throw 'This full-cycle initializer requires explicit deployment and teardown approval' }
+    if (-not $ApproveDeployment) { throw 'Explicit deployment approval is required' }
+    if ($ApproveDestroy) { throw 'Creation cannot authorize teardown. Request teardown separately through Invoke-Lab.ps1.' }
     $directory = Assert-ExternalLabPath $RunDirectory
     $config = Assert-ExternalLabPath $AzureConfigDirectory
     if (Test-Path -LiteralPath $directory) { throw 'Run directory already exists; use its existing state instead' }
@@ -38,7 +39,8 @@ try {
     $state.azureConfigDirectory = $config
     $state.bicepExecutable = (Get-Command $BicepExecutable -CommandType Application).Source
     $state.deploymentAuthorized = $true
-    $state.destroyAuthorized = $true
+    $state.destroyAuthorized = $false
+    $state.lifecycleMode = 'independent'
     $state.authorizedAt = [DateTimeOffset]::UtcNow.ToString('o')
     $state.privateAccessVerified = $false
     $state.pendingPhase = $null

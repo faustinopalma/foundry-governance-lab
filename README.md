@@ -9,6 +9,7 @@ A governance standard and deployable reference lab for platform engineers and ap
 | [Governance](docs/Governance.md) | Requirements for model access, identity, networking, data protection and production releases. |
 | [Components And Architecture](docs/Components.md) | Resource responsibilities, request flows and authorization boundaries. |
 | [Lab Lifecycle](docs/Lifecycle.md) | Prerequisites, staged deployment, repeat testing and guarded teardown. |
+| [Independent Lifecycle](docs/independent-lifecycle.md) | New core infrastructure only, later targeted tests and separately approved teardown; current lifecycle and topology diagrams. |
 | [Tests And Results](docs/Tests.md) | Q01-Q11 assertions, reference results and validation limits. |
 | [Diagram Files](diagrams/README.md) | PNG, SVG and editable Excalidraw downloads for the figures embedded in the documents. |
 
@@ -16,7 +17,9 @@ Implementation: `infra/` contains Bicep templates and the gateway policy; `scrip
 
 ## Run The Lab
 
-Start with [preparation and prerequisites](docs/Lifecycle.md#preparation). For an existing environment, use [repeat tests](docs/Lifecycle.md#repeat-quick-tests) or the separately approved [teardown procedure](docs/Lifecycle.md#teardown).
+For a new lab, start with the [independent lifecycle](docs/independent-lifecycle.md) and `scripts/Invoke-Lab.ps1`: `Create`, `Status`, explicit `Test` groups, and separately approved `Teardown`. Creation runs no lab tests and grants no future removal consent. Resources remain active between requests.
+
+The new command provisions the default four-group **core** topology, not the expanded Standard agent-service dependencies or hosted workloads. The [advanced retained workflow](docs/Lifecycle.md) and its Q01-Q11 reference results remain separate. Do not migrate existing minimal/expanded state to the core coordinator.
 
 ## GitHub Copilot
 
@@ -29,5 +32,7 @@ Open the repository root in VS Code and use Copilot Agent mode. The included [wo
 Keep `.github/` when copying the repository. An Azure MCP server is optional; the scripts enforce execution safeguards, and Copilot tool approvals still apply.
 
 ## Word Downloads
+
+These downloads describe the earlier expanded reference workflow. For the current independent creation/test/teardown contract, use the Markdown guide above.
 
 [Governance](word/Governance.docx) | [Components And Architecture](word/Components.docx) | [Lab Lifecycle](word/Lifecycle.docx) | [Tests And Results](word/Tests.docx)

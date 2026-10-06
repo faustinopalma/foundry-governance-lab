@@ -414,6 +414,50 @@ try {
         $script:state.phase = 'destroyed'
         Confirm-Blocked $action 'Forbidden lifecycle transition'
     }
+    foreach ($deleteAction in @('Advance','Dependencies','Next')) {
+        Reset-Fixture
+        $script:state.lifecycleMode = 'independent'
+        $script:state.destroyAuthorized = $false
+        foreach ($approval in @(@($false,'sample01'), @($true,'wronglab'))) {
+            $rejected = $false
+            try { $null = Invoke-LabTeardown 'synthetic-state' $deleteAction $approval[0] $approval[1] } catch { $rejected = $_.Exception.Message -like '*fresh ApproveTeardown*' }
+            Confirm-Equal $rejected $true 'Independent deletion requires exact current consent'
+            Confirm-Equal $script:calls.Count 0 'Consent rejection precedes transport'
+        }
+    }
+    Reset-Fixture
+    $script:state.lifecycleMode = 'independent'
+    $script:state.destroyAuthorized = $false
+    $null = Invoke-LabTeardown 'synthetic-state' 'Advance' $true 'sample01'
+    Confirm-Equal @($script:calls | Where-Object label -eq 'teardown-delete').Count 1 'Advance deletes at most one dependency without lab tests'
+    Confirm-Equal $script:guardCounters.acceptance 0 'Independent teardown does not require inference acceptance'
+    Confirm-Equal $script:state.destroyAuthorized $false 'Dependency deletion does not persist approval'
+    Confirm-Equal $script:state.phase 'destroy' 'First deletion prevents a later Create'
+    $pendingId = $script:state.teardownPending.id
+    $script:calls.Clear()
+    $null = Invoke-LabTeardown 'synthetic-state' 'Advance' $true 'sample01'
+    Confirm-Equal @($script:calls | Where-Object label -eq 'teardown-delete').Count 0 'Repeated Advance does not replay a pending dependency'
+    Confirm-Equal $script:state.teardownPending.id $pendingId 'Uncertain deletion keeps its exact target'
+    $script:links.value = @($script:links.value | Where-Object id -ne $pendingId)
+    $null = Invoke-LabTeardown 'synthetic-state' 'Status'
+    Confirm-Equal $script:state.ContainsKey('teardownPending') $false 'Status reconciles exact dependency absence'
+    Confirm-Equal @($script:calls | Where-Object label -eq 'teardown-delete').Count 0 'Status never starts the next deletion'
+    Reset-Fixture
+    $script:state.lifecycleMode = 'independent'
+    $script:state.destroyAuthorized = $false
+    $script:links.value = @($script:links.value | Where-Object name -notin @('linked-2','linked-3'))
+    $script:inventory.items = @($script:inventory.items | Where-Object id -ne $script:account.id)
+    $null = Invoke-LabTeardown 'synthetic-state' 'Advance' $true 'sample01'
+    Confirm-Equal @($script:calls | Where-Object label -eq 'delete-rg-fgl-sample01-case-a').Count 1 'Advance deletes a group only after dependencies are absent'
+    Confirm-Equal $script:state.destroyAuthorized $false 'Deletion does not persist consent for future calls'
+    Reset-Fixture
+    $script:state.lifecycleMode = 'independent'
+    $script:state.destroyAuthorized = $false
+    $script:snapshot.resources = @()
+    $script:inventory.items = @()
+    Save-FixtureEvidence
+    $null = Invoke-LabTeardown 'synthetic-state' 'Advance' $true 'sample01'
+    Confirm-Equal @($script:calls | Where-Object label -eq 'delete-rg-fgl-sample01-case-a').Count 1 'Partial failed provisioning can remove owned empty groups'
     foreach ($failure in @('Missing acceptance receipt','Tampered acceptance receipt')) {
         foreach ($scenario in @('Evidence','Dependencies','Next','Status','Direct')) {
             Reset-Fixture -MinimalPrompt
