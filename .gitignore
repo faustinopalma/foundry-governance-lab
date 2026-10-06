@@ -30,3 +30,4 @@ cleanup.json
 *.publishsettings
 *.bicepparam
 !infra/example.bicepparam
+/Microsoft_Foundry_Governance_Strategy.md
