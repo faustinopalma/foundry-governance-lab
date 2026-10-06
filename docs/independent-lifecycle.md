@@ -4,35 +4,7 @@ Use [Invoke-Lab.ps1](../scripts/Invoke-Lab.ps1) for a **new four-group core lab*
 
 ## Scope And Architecture
 
-The core profile is the complete default [main.bicep](../infra/main.bicep) topology: four new resource groups, three Foundry accounts, four projects, central model, APIM Standard v2, private networking and runner, managed identities, monitoring and two Premium registries. Public APIM access is temporarily enabled during bootstrap and disabled by lock. Activation installs the API, policy, model authorization and connections.
-
-```mermaid
-flowchart LR
-    subgraph Models[Models resource group]
-        Central[Central Foundry account and model]
-    end
-    subgraph Integration[Integration resource group]
-        Gateway[Private APIM]
-        Network[Unpeered VNet and private DNS]
-        Runner[Private test runner]
-        Monitor[Monitoring and AMPLS]
-    end
-    subgraph CaseA[Case A resource group]
-        AccountA[Foundry account: A-dev and A-test]
-        RegistryA[Private Premium ACR]
-    end
-    subgraph CaseB[Case B resource group]
-        AccountB[Foundry account: B-dev and B-test]
-        RegistryB[Private Premium ACR]
-    end
-    AccountA --> Gateway
-    AccountB --> Gateway
-    Gateway --> Central
-    Runner --> Gateway
-    Network -. Private endpoints .-> Models
-    Network -. Private endpoints .-> CaseA
-    Network -. Private endpoints .-> CaseB
-```
+The core implements the [model, gateway and application boundaries](architecture.md) in [main.bicep](../infra/main.bicep): central models, application projects, APIM, private networking, a test runner, managed identities, monitoring and registries. Public APIM access is temporarily enabled during bootstrap and disabled by lock. Activation installs the API, policy, model authorization and connections.
 
 This is **not the expanded Standard agent-service profile**. It does not provision per-project Storage/Search/Cosmos dependencies or capability hosts, deploy hosted workloads, or create an observation agent. Those remain separate, advanced workflows. Do not claim end-to-end agent inference or Q01-Q11 acceptance from core provisioning. Existing minimal/expanded runs retain their own coordinators and evidence; do not rewrite their state to use this entry point.
 
@@ -40,26 +12,18 @@ This is **not the expanded Standard agent-service profile**. It does not provisi
 
 ```mermaid
 flowchart TD
-    Request[Explicit creation request and cost approval] --> Bootstrap[Create: bootstrap]
-    Bootstrap --> Observe1[Status: wait for ARM completion]
-    Observe1 --> Lock[Create: lock]
-    Lock --> Observe2[Status: wait for ARM completion]
-    Observe2 --> Activate[Create: ARM privacy checks and activate]
-    Activate --> Observe3[Status: wait for ARM completion]
-    Observe3 --> Retain[Core infrastructure retained; not runtime-qualified]
-    Retain -->|Later explicit prompt| Tests[Test: only selected groups]
+    Create[Deploy approved core infrastructure] --> Retain[Retain the lab; runtime not yet qualified]
+    Retain -->|Later explicit request| Tests[Run only selected tests]
     Tests --> Retain
-    Retain -->|Separate explicit teardown prompt| Evidence[Teardown: capture owned inventory]
-    Evidence --> Advance[Advance: one approved deletion]
-    Advance --> ObserveDelete[Status: observe exact target absence]
-    ObserveDelete -->|More owned targets| Advance
-    ObserveDelete --> Absent[Owned groups absent; private evidence retained]
-    Observe1 -. Failed provisioning may also be removed .-> Evidence
+    Retain -->|Separate approval for the exact lab| Remove[Remove only owned resources]
+    Create -. Provisioning failure .-> Failed[Partial deployment]
+    Failed -->|Separate approval; tests not required| Remove
+    Remove --> Absent[Verify absence; preserve private evidence]
 ```
 
 Creation uses compilation, ARM validation/what-if, ownership checks and fresh management-plane postconditions. These are deployment safety checks, not lab tests. It never invokes a test harness, prepares the runner, sends inference or grants future deletion consent. The private-network test flag remains false until an explicitly requested test passes.
 
-One `Create` submits at most one stage. Pending work is observed, never replayed. `Status` does not deploy. A process exit or submission acknowledgement is not completion. Failed/uncertain operations require diagnosis from preserved evidence; never clear pending markers or blindly retry. This revision has offline safety coverage, not a live qualification of a new deployment.
+One `Create` submits at most one stage. Pending work is observed, never replayed. `Status` does not deploy. A process exit or submission acknowledgement is not completion. Failed/uncertain operations require diagnosis from preserved evidence; never clear pending markers or blindly retry. Infrastructure completion does not qualify the runtime flows of a new deployment.
 
 ## Preparation
 

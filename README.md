@@ -1,38 +1,34 @@
-# Microsoft Foundry Governance Lab
+# Foundry Governance Lab
 
-A governance standard and deployable reference lab for platform engineers and application teams adopting Microsoft Foundry. The goal is to centralize access to approved models while giving teams project-scoped access to their agents and data dependencies.
+## Principles And Architecture
 
-## Repository Contents
+The platform owns approved models, application teams own their agents, and separation follows risk. Every service has an accountable owner. These [governance principles](docs/Governance.md) guide the lab.
 
-| Document | Contents |
-| --- | --- |
-| [Governance](docs/Governance.md) | Requirements for model access, identity, networking, data protection and production releases. |
-| [Components And Architecture](docs/Components.md) | Resource responsibilities, request flows and authorization boundaries. |
-| [Lab Lifecycle](docs/Lifecycle.md) | Prerequisites, staged deployment, repeat testing and guarded teardown. |
-| [Independent Lifecycle](docs/independent-lifecycle.md) | New core infrastructure only, later targeted tests and separately approved teardown; current lifecycle and topology diagrams. |
-| [Tests And Results](docs/Tests.md) | Q01-Q11 assertions, reference results and validation limits. |
-| [Diagram Files](diagrams/README.md) | PNG, SVG and editable Excalidraw downloads for the figures embedded in the documents. |
+One central **Foundry resource hosts the models**. Separate **Foundry resources contain each use case's projects and agents**. **API Management controls model access**, checking callers and applying policies before forwarding requests to the model backend.
 
-Implementation: `infra/` contains Bicep templates and the gateway policy; `scripts/` contains operational commands; `tests/` contains offline safety and structural checks.
-
-## Run The Lab
-
-For a new lab, start with the [independent lifecycle](docs/independent-lifecycle.md) and `scripts/Invoke-Lab.ps1`: `Create`, `Status`, explicit `Test` groups, and separately approved `Teardown`. Creation runs no lab tests and grants no future removal consent. Resources remain active between requests.
-
-The new command provisions the default four-group **core** topology, not the expanded Standard agent-service dependencies or hosted workloads. The [advanced retained workflow](docs/Lifecycle.md) and its Q01-Q11 reference results remain separate. Do not migrate existing minimal/expanded state to the core coordinator.
-
-## GitHub Copilot
-
-Open the repository root in VS Code and use Copilot Agent mode. The included [workspace instructions](.github/copilot-instructions.md) and [lab skill](.github/skills/foundry-governance-lab/SKILL.md) support architecture questions, deployment, status checks, testing and teardown. Invoke `/foundry-governance-lab` followed by your request, for example:
-
-```text
-/foundry-governance-lab Run the local package checks without calling Azure.
+```mermaid
+flowchart LR
+    A[Foundry A: application projects] --> APIM[APIM: access control and policies]
+    B[Foundry B: application projects] --> APIM
+    APIM --> Models[Central Foundry: model deployments]
 ```
 
-Keep `.github/` when copying the repository. An Azure MCP server is optional; the scripts enforce execution safeguards, and Copilot tool approvals still apply.
+[Architecture](docs/architecture.md) explains the resources, identities and boundaries behind this route.
 
-## Word Downloads
+## Tested Flows
 
-These downloads describe the earlier expanded reference workflow. For the current independent creation/test/teardown contract, use the Markdown guide above.
+Tests cover both **flows that must succeed** and **flows that must be blocked**: authorized gateway calls and own-project access, paired with anonymous calls, unauthorized callers and access to another project.
 
-[Governance](word/Governance.docx) | [Components And Architecture](word/Components.docx) | [Lab Lifecycle](word/Lifecycle.docx) | [Tests And Results](word/Tests.docx)
+See [executed tests and results](docs/Tests.md) for what worked, what was denied and what remains unproven. These are historical results, not certification of a newly deployed lab. The [test plan](docs/test-plan.md) also includes scenarios not yet qualified.
+
+## Deploy, Test, Tear Down
+
+[scripts/Invoke-Lab.ps1](scripts/Invoke-Lab.ps1) exposes three independent operations:
+
+| Operation | Action |
+| --- | --- |
+| Deploy | `-Action Create`: provision core infrastructure without running tests. |
+| Test | `-Action Test`: run explicitly selected test groups. |
+| Tear down | `-Action Teardown`: remove owned resources after separate approval. |
+
+The [execution guide](docs/independent-lifecycle.md) provides complete commands and prerequisites, including the additional scope for Standard agent dependencies and hosted workloads. Resources remain billable until removed.

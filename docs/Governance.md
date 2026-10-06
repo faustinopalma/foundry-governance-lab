@@ -1,156 +1,112 @@
-# Microsoft Foundry: Governance Standard
+# Governance Principles
 
-This organizational standard applies to Foundry Agent Service, including prompt and hosted agents. Requirements expressed as "must" are acceptance conditions for adopting it. The [reference implementation](Components.md) documents the lab's concrete configuration.
+Application teams need freedom to build agents without taking over shared models or gaining access to another application's data. Governance defines that freedom, its boundaries and who is accountable for the resulting service.
 
-## 1. Ownership
+## Start With Principles
 
-| Owner | Accountability |
+| Principle | What it means |
 | --- | --- |
-| Platform team | Model approval, versions and retirements; deployments and capacity; gateway policy and shared connectivity. |
-| Application owner and team | Agent development within assigned projects; application quality, user authorization, permitted data use, consumption and operational readiness, including managed runtimes. |
-| Data owners | Approval of source access and permitted tool actions. |
+| Centrally managed models | The platform team owns the approved catalog, deployments, access, capacity and model lifecycle. Application teams choose from that catalog. |
+| Application-team autonomy | Teams develop and manage agents within their assigned environments without administering shared models or infrastructure. |
+| Separation according to risk | Production and non-production have distinct boundaries. Sharing depends on compatible data, administrators, networking and tolerance for mutual impact. |
+| Service accountability | Every use case has an owner for quality, application security, consumption and continuity, even when Foundry manages execution. |
 
-## 2. Architecture And Boundaries
+Product limitations are constraints on an implementation, not permanent governance principles. Adopt supported capabilities, record material exceptions and revisit them when support and evidence change.
 
-### 2.1 Resource Responsibilities
+## Place Projects Within Deliberate Boundaries
 
-| Component | Responsibility and boundary |
+A **Foundry resource** contains **Foundry projects**. A project organizes agents, connections and application assets; it is not an independent network perimeter. Resource-level administration, inherited permissions and shared connections can affect several projects.
+
+Choose boundaries for the actual capabilities in use: some Foundry APIs require resource-level permissions rather than project-level access. A project boundary cannot supply isolation that the selected API does not support.
+
+Non-production experimentation can share a Foundry resource when its data and access requirements are compatible. Development and test may share resource-level networking and administration. Production belongs in resources separate from non-production; a dedicated resource is the starting point for a new production service.
+
+Production services may share a resource when administrators, network and data requirements are compatible and the impact of shared capacity or failure is acceptable. Apply the same reasoning to registries, monitoring and data stores. Every shared component still needs an owner for operation, capacity and cost.
+
+The lab represents these concerns with separate case A and case B resources and dev/test projects. It does not implement production environments or independent dev/test network perimeters. See [the lab architecture](architecture.md) for its concrete boundaries.
+
+## Govern Model Access Through Integration
+
+Centralization is an ownership model, not a requirement for a single physical model resource. Approved models can be distributed across resources for environment separation, processing geography, capacity or continuity. Any approved case-local deployment remains platform-managed.
+
+**Integration** is the ordinary model-access path. It exposes an agreed service contract: available models and operations, authentication, authorization, usage limits, error behavior and attribution. APIM implements this role in the lab; an existing enterprise integration service can fill it when the full path is supported and qualified.
+
+![Central model governance and application-team boundaries.](../diagrams/04-governance.png)
+
+The figure groups responsibilities by team, not by physical resource. Production uses separate resources from non-production; the arrows show the ordinary governed route, not an approved-exception topology.
+
+Applications invoke their agent endpoint, while applications needing only inference may call an authorized Integration route directly. A connection makes a model discoverable; it does not copy the deployment, authorize the caller or guarantee protocol and tool compatibility.
+
+Where a capability cannot use Integration, a native model route requires explicit platform approval and equivalent identity, data-location, monitoring and usage controls. Application teams must not introduce alternate backends independently. **The lab deliberately tests the stricter gateway-only design:** it provides no native bypass exception or case-local model fallback.
+
+The Integration owner controls routing and attributes usage to an authenticated application or agreed group. Shared project identities do not necessarily distinguish individual agents. Do not trust arbitrary caller-supplied headers for authorization or cost allocation.
+
+## Separate Development, Invocation And Administration
+
+Use Microsoft Entra ID for people and workloads. Organize human access by responsibility and environment; prefer managed or federated identities for services and pipelines. Any necessary secret needs protected storage, rotation and an owner.
+
+A role defines allowed operations; its assignment scope defines where they apply. Management-plane permissions and data-plane permissions are different. Inherited grants are additive, so a narrow project assignment cannot remove broader access.
+
+| Responsibility | Access boundary |
 | --- | --- |
-| Central model resources | Host approved model deployments, without application-agent projects. |
-| AI gateway | Entry point for model inference. Azure API Management (APIM) is one implementation; it does not host agents or models. |
-| Use-case Foundry resource | Contain projects for a use case or an approved group of compatible use cases. It hosts no local model deployments under this standard. |
-| Foundry project | Organize agents, connections and project-level access for one application environment. It is not an independent network perimeter. |
-| Data and runtime dependencies | Supply storage, retrieval, tools, container images and telemetry. Each has its own access controls, network configuration and lifecycle. |
+| Platform administration | Manage model resources, projects and shared configuration; development and access-administration permissions are considered separately. |
+| Application development | Develop and test in the assigned non-production project, with parent-resource read access where needed for discovery. |
+| Release pipeline | Only the deployment operations needed in the target environment, without general administration. |
+| Application caller | Invoke the selected agent or model route, without agent-development permissions. |
+| Agent runtime | Access only its required models, tools and data as the actual runtime or connection identity. |
 
-Central management does not require one physical model resource for the entire organization. Start with a shared resource where requirements permit; separate resources when residency, capacity or availability requirements demand it. The same central approval and gateway controls apply to all of them.
+Foundry User at project scope and Reader on the parent are the development baseline used by the lab. Foundry Agent Consumer applies to supported agent endpoints; other application endpoint contracts can require different invocation permissions. Confirm current role definitions and the actual endpoint before granting access rather than using a broader role to make a request succeed.
 
-Applications invoke the agent endpoint for their use case. Direct model consumption, where required, must use an explicitly authorized gateway route.
+![Separate identities authorize agent invocation, model inference and data access.](../diagrams/05-identity-boundaries.png)
 
-![Figure 1. Application teams access centrally governed models through the AI gateway. Project identities and data permissions remain specific to the authorized use case and environment.](../diagrams/04-governance.png)
+The caller's permission to invoke an agent does not automatically authorize access to underlying information. Applications using a shared service identity remain responsible for user, conversation and document ownership. A conversation identifier alone is not proof of access.
 
-### 2.2 Choosing The Isolation Boundary
+Gateway authorization and model-service authorization are also separate. An app-role design can authorize service callers through a registered gateway API and signed role claims; APIM then obtains its own backend token. Validate that the selected Foundry connection supports that audience and token contract. The lab's explicit caller allowlist is not evidence that this production integration has been qualified.
 
-Use separate projects for development, test and production. Use separate Foundry resources when environments or use cases need independent network settings, resource administration or shared-connection exposure. Incompatible data or production access requirements must not be resolved by granting broader permissions on a shared resource.
+## Choose Execution Independently Of Governance
 
-Azure RBAC permissions are additive and inherited. A project-scoped role does not remove access already granted at resource, resource-group or subscription scope. Review inherited assignments before treating a project as an authorization boundary. A resource group organizes ownership and lifecycle; it does not filter network traffic.
+Use a prompt agent when instructions, approved models and supported managed tools express the required behavior. Use a hosted agent for custom code on the Foundry runtime. An application-managed runtime is another option when execution control or integrations require it, with additional responsibility for endpoints, scaling and operations. A framework choice does not by itself determine hosting or the model-access route.
 
-Create model connections through a controlled provisioning identity. Record the connection's actual scope, authentication method, caller identity and exposed models. Resource-scoped connected-model configurations can be available to every project in that resource; do not use their visibility as evidence of project-specific authorization. Enforce the permitted caller/model combinations at the gateway.
+For container-based hosting, separate image build, publication, platform pull and runtime access. Scan artifacts for vulnerabilities and secrets and release an identifiable immutable image. Observe which identity pulls the image and which identity calls models, tools and data; do not copy permissions between them by assumption.
 
-## 3. Model Access And Gateway Controls
+Applications receive a stable agent interface with authentication and input, output and session contracts. They should not depend on the physical placement of the model backend.
 
-### 3.1 Approved Model Contract
+## Protect The Whole Data Path
 
-For each approved model route, maintain the deployment and model version, supported protocol and tools, processing geography, capacity allocation, usage limits and retirement plan. The Azure resource region alone does not establish where inference is processed: assess the selected deployment type, including Global and Data Zone options.
+Define permitted data, users, processing locations, retention and deletion before activation. Include prompts, files, conversation history, tool results and telemetry. Resource location alone does not establish processing geography; the deployment type and service conditions matter.
 
-A connection makes a remote model discoverable to an agent; it neither copies the deployment nor grants access to it. Connected-model support varies by tool and protocol. Verify the required combination before selecting the architecture, rather than assuming every native Foundry feature works through any gateway.
+Managed conversation history does not automatically provide workflow recovery or a complete audit record. Identify what belongs in service-managed state and what needs an application-owned store, including user ownership and deletion across both.
 
-Expose approved routes only. Application teams must not receive direct central-model inference permissions or credentials. Restrict network paths and access administration so that changing a client endpoint or deploying a replacement model cannot bypass the gateway.
+Network controls cover the entire path: callers, gateway, models, runtime, data and operational dependencies. Choose private connectivity or explicitly justified authenticated public access according to service requirements. The lab uses a private baseline. DNS and routing make a destination reachable; service authorization determines what the caller may do there.
 
-### 3.2 Gateway Policy
+Constrain tool destinations, operations and accessible data in services and code. Prompt instructions are not an access-control mechanism. Test prompt-injection and tool-misuse defenses, and require confirmation or proportional safeguards for consequential actions.
 
-- Fix the permitted backend, deployment and operations. Do not accept arbitrary destinations or credentials supplied by callers.
-- Authenticate separately to the backend using a managed identity where supported: this is a workload's Microsoft Entra identity with Azure-managed credentials. Keep backend keys out of application code; any necessary secret must have an owner, protected storage and rotation.
-- Set request-size and generation limits appropriate to the service. Define rate and token limits per use case, with shared-capacity protection where needed. Restrict who can edit policies because policies can act through the gateway identity.
-- Measure usage, failures and latency with a stable use-case identifier derived from authenticated context. Do not trust an arbitrary client header for authorization or billing attribution.
+## Release And Operate A Service, Not Just An Agent
 
-A rate limit, a token quota and a monetary budget are different controls. Validate enforcement on the selected gateway tier and policy; configure cost alerts and escalation separately. Retries must be bounded and respect throttling responses. Failover must preserve model compatibility, authorization and processing-location requirements, not silently select an unapproved backend.
+Select the production agent version explicitly and identify its model, tools, code and configuration. A pinned agent version does not freeze its dependencies. Model catalog or routing changes require checks against affected applications and a usable rollback path.
 
-### 3.3 Production App-Role Authorization
+The service owner sets representative acceptance criteria and approves production readiness. Correlatable telemetry supports diagnosis and consumption attribution without unnecessary payload capture. Never log secrets; any content capture needs a defined purpose, access policy and retention.
 
-Production deployments must authorize application callers through Microsoft Entra app roles. Register the gateway API and expose application permissions such as `Inference.Invoke`, with `Application` as an allowed member type. Assign these roles directly to the calling managed identities' service principals or other application service principals. Define separate permissions where model routes or environments require different access. Manage assignments in Entra so that changing a caller does not require editing the gateway policy.
+Usage limits and monetary budgets are different controls. Budget alerts do not stop spending. Define and test what happens when technical limits are reached, who handles failures and who can suspend service or revoke access. Recovery and alternate backends must preserve the same authorization and data constraints.
 
-Callers and Foundry connections request an app-only access token for the registered gateway API's audience. This service-to-service flow requires no human sign-in or delegated user token. The registration represents the protected API; the caller retains its own identity. APIM validates the token's signature, issuer, tenant, lifetime and audience, then requires the appropriate value in the signed `roles` claim for the operation. A missing or insufficient role must deny access. A Cognitive Services token does not establish these custom application permissions.
+## Prove The Boundaries
 
-App roles control access to the gateway API; Azure RBAC controls permissions on the model service. APIM obtains a separate Cognitive Services token using its own managed identity and [backend data-plane role](#41-people-and-deployment-automation). Validate the selected connection and runtime against this token contract before adoption; the production checks are specified in [operational acceptance](#7-operational-acceptance).
+Before adoption, demonstrate permitted flows and their corresponding restrictions:
 
-## 4. Identities And Permissions
+- An approved application reaches its agent and model route; an unauthorized caller or alternate route is refused.
+- A developer manages its own project; sibling and cross-case operations outside its role are denied.
+- A runtime reaches its permitted data and tools; unauthorized data, sessions and tool operations remain inaccessible.
+- A release can be activated and rolled back; changing its dependencies does not silently bypass approval.
+- Telemetry and alerts reach their owners; restricted readers cannot access another application's protected records.
 
-### 4.1 People And Deployment Automation
+These are governance acceptance conditions, not a performance score. The [lab test plan](test-plan.md) translates relevant conditions into checks; [executed results](Tests.md) distinguish observed controls from unproven requirements.
 
-Authenticate people and applications through Microsoft Entra ID. Assign human access through security groups by responsibility and environment, with time-limited privileged access where available. Separate infrastructure provisioning and role assignment from everyday development; prefer federated pipeline credentials to long-lived deployment secrets.
-
-| Responsibility | Baseline role and scope |
-| --- | --- |
-| Central model administration | Foundry Account Owner on the central model resource; inference and role-assignment permissions are reviewed separately. |
-| Infrastructure provisioning | Contributor on the dedicated resource group, or a narrower role covering the required resources. This is not an application runtime identity. |
-| Access administration | Role Based Access Control Administrator at the smallest required scope, with assignment conditions where supported. |
-| Agent development | Foundry User on the assigned project; Reader on the parent resource when needed for discovery and portal navigation. |
-| Agent endpoint consumption | Foundry Agent Consumer on the specific agent, or on the project only when all its agents are in scope. |
-| Gateway-to-model inference | A model-provider data-plane role on the approved backend; for Azure OpenAI inference, Cognitive Services OpenAI User is the usual baseline. |
-
-Confirm required operations against the current role definitions. Foundry roles may appear under their former Azure AI names while naming changes roll out; role IDs and permissions determine access. Generic Owner or Contributor access must not be assumed to grant every Foundry data-plane operation.
-
-Foundry Agent Consumer covers agent endpoint interaction, not every resource called an application. A Foundry agent application uses a separate invocation permission and scope. Identify the endpoint contract before assigning access; do not grant development rights merely to make a consumer call succeed.
-
-### 4.2 Runtime Identity
-
-Prefer managed identities for workloads. System-assigned identities share their resource's lifecycle; user-assigned identities are standalone Azure resources.
-
-Distinguish the application caller, project managed identity, hosted-agent identity and gateway identity. For each connection, establish which identity actually obtains the token and assign permissions to that identity on the destination. Creating a connection or attaching an identity does not authorize it.
-
-![Figure 2. Agent invocation, gateway access, model inference and data access require separate authorization.](../diagrams/05-identity-boundaries.png "inline")
-
-The project identity supports platform operations and configured connections. A hosted agent has a separate Entra identity for runtime access. Grant data and tool permissions by required operation and environment, not by copying all permissions from the project to the agent.
-
-An app role assigned to a shared project identity does not distinguish individual agents using that identity. Per-agent gateway authorization requires distinct caller identities and a connection and runtime that support obtaining tokens as those identities.
-
-Applications must authorize their own users and enforce conversation and document ownership. A backend service identity does not distinguish those users by itself. Where delegated user identity is supported, validate the delegation contract; otherwise enforce access in the application and data layer. Never accept a conversation identifier as proof of ownership.
-
-## 5. Private Networking And Data Protection
-
-### 5.1 Network Controls
-
-Private data-plane access is the baseline for Foundry, model backends and sensitive dependencies. Disable public access and local-key authentication where supported, unless a documented exception is approved. Validate DNS and routing from every actual caller, including agent runtimes, build systems and operational tools.
-
-Inbound private endpoints and runtime outbound connectivity solve different problems. A Foundry private endpoint does not automatically place the agent runtime in the required network. Likewise, APIM outbound VNet integration does not make its gateway private: inbound access must be configured separately on a supporting tier. NAT provides outbound translation, not an egress allowlist.
-
-The public Foundry portal and Azure management APIs are separate from private service APIs. Viewing a resource in the portal does not prove that its playground or inference endpoint is reachable. Management permissions still allow authorized administrators to change network settings and must be controlled accordingly.
-
-Allow runtime egress only to approved models, tools and dependencies through supported network controls. Test the effective network path; a private DNS record or provisioned endpoint alone is not evidence of isolation. Any public channel or endpoint exception must identify the exposed protocol, authentication controls and data permitted on that route.
-
-### 5.2 Data And Tool Authorization
-
-Record approved sources, retrieval scope, permitted actions and retention. Apply permissions at the smallest supported data scope. Retrieval must enforce the requesting user's or application's authorization before returning content; prompt instructions and a shared search index are not access controls.
-
-Treat model output and retrieved instructions as untrusted input to tools. Validate tool arguments, constrain destinations and operations, and require approval for consequential actions where the service risk warrants it. Content-safety filters and prompt-injection defenses complement these controls; neither replaces authorization.
-
-Classify prompts, responses, files, conversation state and telemetry. Define access, retention and deletion for every store, including service-managed state. Do not log payloads by default. When payload capture is necessary, minimize or redact content and restrict access; diagnostic settings do not establish the retention behavior of every underlying service.
-
-## 6. Agent Implementation And Release
-
-### 6.1 Prompt Or Hosted Agent
-
-Use a prompt agent when instructions, approved models and supported tools meet the requirements. Use a hosted agent when custom orchestration, libraries or executable logic are necessary. Managed hosting reduces infrastructure work but does not transfer responsibility for dependencies, application vulnerabilities or unsafe tool behavior to the platform.
-
-Hosted agents require an approved container delivery path and telemetry resources. Under the private baseline, use a private Azure Container Registry and build/push infrastructure with the required private connectivity. Confirm that the Foundry project supports private-registry pulls; older projects may have different network constraints. With RBAC Registry + ABAC Repository Permissions, grant Container Registry Repository Writer to the publisher and Container Registry Repository Reader to the project identity used for image pulls; constrain repositories with conditions where appropriate. Runtime tool permissions belong to the actual runtime identity, not to the publisher.
-
-Connect Application Insights to Log Analytics and grant operators only the required telemetry access. If evaluations read workspace data, grant the documented workspace data-read permission to the evaluation identity. Verify region, networking and feature availability for the chosen runtime before approval.
-
-### 6.2 Controlled Promotion
-
-Version infrastructure, gateway policies, agent definitions and connection configuration. Promote a tested agent version and immutable image artifact; inject environment-specific bindings without moving development credentials or data into production. Separate building an image, publishing it, deploying it and assigning its permissions.
-
-Model, prompt, tool and dependency changes can alter behavior independently. Run representative quality, safety and authorization tests before promotion. Retain a rollback route and a tested way to disable the agent or a tool. Do not depend on an unspecified "latest" version for production reproducibility. The platform team must notify affected owners of model changes and retirements early enough to qualify a replacement.
-
-## 7. Operational Acceptance
-
-Assign alert response, incident escalation and removal of obsolete access to the operational owners.
-
-Before production use, retain evidence that:
-
-- The named owner, environment placement, data classification, model route and approved identities match the deployed configuration, including inherited permissions.
-- Authorized direct-gateway and agent requests succeed through the intended routes. Anonymous, wrong-audience, missing or incorrect app-role, unauthorized-model and direct-backend requests are rejected as designed.
-- A representative identity can access its own project and data but cannot access another use case or environment. Each denial has a successful permitted control; a network failure is not proof of an authorization boundary.
-- Private DNS, runtime egress, image pulls and required tool paths work from their real sources. Network-denial claims are tested from those sources, not only from an administrator's workstation.
-- Usage controls and alerts have been exercised. Operators can correlate failures without unnecessary payload exposure, and the service has defined capacity and availability objectives.
-- The deployed version is recorded; rollback, recovery, credential revocation and data-retention procedures have been tested to the extent required by the service risk.
-
-Recheck affected controls after changes to identities, network rules, connections, models or gateway policy. Exceptions require an owner, rationale, compensating controls and review or expiry condition; they must not remain undocumented implementation choices.
+At retirement, notify callers, revoke access, handle data and logs according to retention rules, and remove only resources no longer needed. Shared services must remain available to their other users.
 
 ## References
 
-- [Foundry resource and project planning](https://learn.microsoft.com/azure/foundry/concepts/planning) and [Foundry roles and scopes](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry).
-- [Connected Foundry models](https://learn.microsoft.com/azure/foundry/agents/how-to/connected-models) and [AI gateway connections](https://learn.microsoft.com/azure/foundry/agents/how-to/ai-gateway).
-- [OAuth authorization for AI APIs](https://learn.microsoft.com/azure/api-management/api-management-authenticate-authorize-ai-apis#oauth-20-authorization-by-using-identity-provider), [APIM token and claim validation](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) and [app-role assignments to managed identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/assign-app-role-managed-identity-powershell).
-- [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents) and [hosted-agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions).
-- [Agent Service private networking](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks) and [ACR repository permissions](https://learn.microsoft.com/azure/container-registry/container-registry-rbac-abac-repository-permissions).
+- [Foundry resource and project planning](https://learn.microsoft.com/azure/foundry/concepts/planning) and [roles and scopes](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry).
+- [Connected models](https://learn.microsoft.com/azure/foundry/agents/how-to/connected-models) and [AI gateway integration](https://learn.microsoft.com/azure/foundry/agents/how-to/ai-gateway).
+- [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents), [their identities and permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions) and [Agent Framework hosting](https://learn.microsoft.com/agent-framework/hosting/).
+- [Private networking](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks), [model data protection](https://learn.microsoft.com/azure/foundry/responsible-ai/openai/data-privacy) and [runtime state](https://learn.microsoft.com/azure/foundry/agents/concepts/runtime-components).
+- [Agent versions and endpoints](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-agent) and [budget behavior](https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets).
